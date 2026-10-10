@@ -45,6 +45,9 @@ nav button{flex:1;background:none;border:0;color:var(--mu);padding:9px 0 7px;fon
 nav button.on{color:var(--ink);font-weight:700}nav button.on svg{stroke:var(--red)}
 nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.den{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}.den button{background:var(--bg);border:0;border-left:5px solid var(--red);border-radius:10px;padding:10px;text-align:left;color:var(--ink);display:flex;flex-direction:column}
+.er{border-top:1px solid var(--ln);padding:10px 0}.er .r{margin-top:6px}.sm{background:none;border:1.5px solid var(--ln);color:var(--ink);border-radius:8px;padding:6px 10px;font-size:13px}.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tape .l{flex-wrap:wrap;gap:4px 12px}
 </style></head><body>
 <header><h1>Duka</h1><span id="chip"></span><button class="ib" data-t="set" aria-label="Sync and backup">⚙</button></header>
 <main id="v"></main>
@@ -57,81 +60,124 @@ nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;st
 <script>
 const K='duka2',$=s=>document.querySelector(s),money=n=>'KES '+(Math.round(n*100)/100).toLocaleString('en-KE');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6),rd3=x=>Math.round(x*1000)/1000;
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const today=()=>ymd(new Date()),hm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 let S={items:[],sales:[],floats:{},tok:'',gid:'',at:0};
 try{Object.assign(S,JSON.parse(localStorage.getItem(K)||'{}'))}catch(e){}
-let tab='sell',day=today(),bk=[],pay='Cash',q='',timer,busy=false,msg='',cd='0',ce='';
+function mig(){S.items.forEach(i=>{if(!i.den){i.den=[{id:'d1',label:'1 pc',amt:1,price:i.price||0,cost:0}];i.unit=i.unit||'pcs'}})}mig();
+let tab='sell',day=today(),bk=[],pay='Cash',q='',timer,busy=false,msg='',pick=null,ed=null;
 const persist=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){alert('Phone storage is full or blocked – export a backup now.')}};
 function changed(){persist();render();clearTimeout(timer);timer=setTimeout(sync,1500)}
-function stock(){const m={},im={};S.items.forEach(i=>{m[i.id]=i.base;im[i.id]=i});S.sales.forEach(s=>{const i=im[s.item];if(!s.v&&i&&s.t>i.bt)m[i.id]-=s.qty});return m}
-function sums(d){let c=0,m=0,n=0;S.sales.forEach(s=>{if(s.d===d&&!s.v){n++;s.pay==='M-Pesa'?m+=s.qty*s.price:c+=s.qty*s.price}});return{c,m,n,t:c+m}}
-function tape(d,title){const t=sums(d);return`<div class="tape"><div class="mu">${title}</div><div class="t">${money(t.t)}</div><div class="l"><span>Cash ${money(t.c)}</span><span>M-Pesa ${money(t.m)}</span><span>${t.n} sales</span></div></div>`}
+const amtOf=s=>s.amt!=null?s.amt:s.qty;
+function stock(){const m={},im={};S.items.forEach(i=>{m[i.id]=i.base;im[i.id]=i});S.sales.forEach(s=>{const i=im[s.item];if(!s.v&&i&&s.t>i.bt)m[i.id]-=amtOf(s)});for(const k in m)m[k]=rd3(m[k]);return m}
+function sums(d){let c=0,m=0,n=0,p=0;S.sales.forEach(s=>{if(s.d===d&&!s.v){const v=s.qty*s.price;n++;s.pay==='M-Pesa'?m+=v:c+=v;if(s.cost!=null)p+=v-s.qty*s.cost}});return{c,m,n,p,t:c+m}}
+function tape(d,title){const t=sums(d);return`<div class="tape"><div class="mu">${title}</div><div class="t">${money(t.t)}</div><div class="l"><span>Cash ${money(t.c)}</span><span>M-Pesa ${money(t.m)}</span><span>${t.n} sales</span><span><b>Profit ${money(t.p)}</b></span></div></div>`}
 function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));({sell:vSell,day:vDay,stock:vStock,calc:vCalc,set:vSet})[tab]();stat()}
 function stat(){$('#chip').textContent=busy?'Syncing…':msg||(!S.tok?'Saved on phone':!navigator.onLine?'Offline · saved':S.at?'Synced '+hm(S.at):'Not synced yet')}
 /* SELL */
-function vSell(){$('#v').innerHTML=tape(today(),'Today')+'<div id="bk"></div><input id="q" placeholder="Search items" value="'+esc(q)+'"><div id="gr" class="grid"></div>';
- $('#q').oninput=e=>{q=e.target.value;grid()};basket();grid()}
-function grid(){const st=stock(),l=S.items.filter(i=>!i.x&&i.name.toLowerCase().includes(q.toLowerCase()));
- $('#gr').innerHTML=l.length?l.map(i=>`<button class="tile" data-add="${i.id}"><b>${esc(i.name)}</b><span>${money(i.price)}</span><em class="${st[i.id]<=3?'low':''}">${st[i.id]} left</em></button>`).join(''):'<p class="mu">No items yet. Add them in the Stock tab.</p>'}
+function vSell(){$('#v').innerHTML=tape(today(),'Today')+'<div id="bk"></div><div id="pk"></div><input id="q" placeholder="Search items" value="'+esc(q)+'"><div id="gr" class="grid"></div>';
+ $('#q').oninput=e=>{q=e.target.value;grid()};basket();picker();grid()}
+function grid(){const st=stock(),l=S.items.filter(i=>!i.x&&i.name.toLowerCase().includes(q.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
+ $('#gr').innerHTML=l.length?l.map(i=>`<button class="tile" data-add="${i.id}"><b>${esc(i.name)}</b><span>${i.den.length>1?i.den.length+' sizes':money(i.den[0].price)}</span><em class="${st[i.id]<=3?'low':''}">${st[i.id]} ${esc(i.unit)} left</em></button>`).join(''):'<p class="mu">No items yet. Add them in the Stock tab.</p>'}
+function picker(){const el=$('#pk'),i=S.items.find(x=>x.id===pick);if(!el)return;if(!i){el.innerHTML='';return}
+ el.innerHTML=`<div class="card"><div class="r" style="align-items:center"><b>${esc(i.name)}</b><button class="x" style="flex:0" data-pc>✕</button></div><div class="den">${i.den.map(d=>`<button data-dn="${i.id}|${d.id}"><b>${esc(d.label)}</b><span>${money(d.price)}</span></button>`).join('')}</div>
+<div class="r"><label>Custom amount (${esc(i.unit)})<input id="ca" type="number" inputmode="decimal"></label><label>Price KES<input id="cp" type="number" inputmode="decimal"></label><button class="sm" style="flex:0" data-cu="${i.id}">Add</button></div></div>`}
+function addLine(i,d,custom){const key=custom?'c'+uid():i.id+'|'+d.id,b=bk.find(x=>x.key===key);
+ if(b)b.qty++;else bk.push({key,item:i.id,name:i.name,label:d.label,amt:d.amt,qty:1,price:d.price,cost:d.cost==null?null:d.cost});pick=null;basket();picker()}
 function basket(){const el=$('#bk');if(!el)return;if(!bk.length){el.innerHTML='';return}
- el.innerHTML=`<div class="card">${bk.map((b,i)=>`<div class="bl"><b>${esc(b.name)}</b><div class="stp"><button data-m="${i}">−</button><b>${b.qty}</b><button data-p="${i}">+</button></div><input class="pr" type="number" inputmode="decimal" value="${b.price}" data-pr="${i}"><button class="x" data-r="${i}">✕</button></div>`).join('')}
+ el.innerHTML=`<div class="card">${bk.map((b,i)=>`<div class="bl"><div><b>${esc(b.name)}</b><div class="mu">${esc(b.label)}</div></div><div class="stp"><button data-m="${i}">−</button><b>${b.qty}</b><button data-p="${i}">+</button></div><input class="pr" type="number" inputmode="decimal" value="${b.price}" data-pr="${i}"><button class="x" data-r="${i}">✕</button></div>`).join('')}
 <div class="seg"><button data-py="Cash" class="${pay==='Cash'?'on':''}">Cash</button><button data-py="M-Pesa" class="${pay==='M-Pesa'?'on':''}">M-Pesa</button></div>
 <div class="tot"><span>Total</span><span id="bt"></span></div><div class="r"><input id="td" type="number" inputmode="decimal" placeholder="Cash given (optional)"><div id="ch" class="mu"></div></div>
 <button class="pri" data-ch>Record sale</button></div>`;bt()}
 function bt(){const t=bk.reduce((a,b)=>a+b.qty*b.price,0),g=+($('#td')||{}).value;$('#bt').textContent=money(t);$('#ch').textContent=g&&pay==='Cash'?(g>=t?'Change '+money(g-t):'Short '+money(t-g)):''}
 /* LEDGER */
+const sline=s=>`${esc(s.name)}${s.lab?' · '+esc(s.lab):''}`;
 function vDay(){const l=S.sales.filter(s=>s.d===day&&!s.v).sort((a,b)=>b.t-a.t),f=(S.floats[day]||{}).v||0;
  $('#v').innerHTML=`<div class="dn"><button data-dd="-1">‹</button><input type="date" id="dp" value="${day}"><button data-dd="1">›</button></div>${tape(day,day===today()?'Today':'Sales on')}
-<div class="card"><div class="r"><label>Opening float<input id="fl" type="number" inputmode="decimal" value="${f||''}"></label><label>Cash counted<input id="cc" type="number" inputmode="decimal"></label></div><div id="dx"></div></div>
-<div class="card">${l.map(s=>`<div class="row"><div><b>${esc(s.name)}</b><div class="mu">${s.qty} × ${money(s.price)} · ${s.pay} · ${hm(s.t)}</div></div><div class="rt"><b>${money(s.qty*s.price)}</b> <button class="x" data-v="${s.id}" aria-label="Remove sale">✕</button></div></div>`).join('')||'<p class="mu">No sales on this day.</p>'}</div><button class="ghost" data-csv>Export this day (CSV)</button>`;
+<div class="card"><div class="r"><label>Opening float<input id="fl" type="number" inputmode="decimal" value="${f||''}"></label><label>Cash counted<input id="cc" type="number" inputmode="decimal"></label></div><div id="dx2"></div></div>
+<div class="card">${l.map(s=>`<div class="row"><div><b>${sline(s)}</b><div class="mu">${s.qty} × ${money(s.price)} · ${s.pay} · ${hm(s.t)}</div></div><div class="rt"><b>${money(s.qty*s.price)}</b> <button class="x" data-v="${s.id}" aria-label="Remove sale">✕</button></div></div>`).join('')||'<p class="mu">No sales on this day.</p>'}</div><button class="ghost" data-csv>Export this day (CSV)</button>`;
  $('#dp').onchange=e=>{day=e.target.value||today();render()};
  $('#fl').oninput=e=>{S.floats[day]={v:+e.target.value||0,u:Date.now()};persist();clearTimeout(timer);timer=setTimeout(sync,1500);cnt()};$('#cc').oninput=cnt;cnt()}
 function cnt(){const exp=sums(day).c+(+$('#fl').value||0),g=$('#cc').value,d=+g-exp;
- $('#dx').innerHTML='Cash expected in drawer: '+money(exp)+(g!==''?'<br><span class="'+(d<0?'low':'')+'">'+(d===0?'Balanced ✓':(d<0?'Short ':'Over ')+money(Math.abs(d)))+'</span>':'')}
+ $('#dx2').innerHTML='<p style="font-weight:600;margin:10px 0 0">Cash expected in drawer: '+money(exp)+(g!==''?'<br><span class="'+(d<0?'low':'')+'">'+(d===0?'Balanced ✓':(d<0?'Short ':'Over ')+money(Math.abs(d)))+'</span>':'')+'</p>'}
 /* STOCK */
-function vStock(){const st=stock(),l=S.items.filter(i=>!i.x).sort((a,b)=>a.name.localeCompare(b.name));
- $('#v').innerHTML=`<div class="card"><label>Item name<input id="an" placeholder="e.g. Sugar 1/2 kg"></label><div class="r" style="margin-top:8px"><label>Price<input id="ap" type="number" inputmode="decimal"></label><label>Quantity to add<input id="aq" type="number" inputmode="decimal"></label></div><p class="mu">Using an existing name updates its price and adds the quantity.</p><button class="pri" style="margin-top:0;background:var(--ac);color:var(--pp)" data-save>Save item</button></div>
-<div class="card">${l.map(i=>`<div class="row"><div><b>${esc(i.name)}</b><div class="mu">${money(i.price)} · <span class="${st[i.id]<=3?'low':''}">${st[i.id]} in stock</span></div></div><div class="rt"><button class="x" data-ed="${i.id}">Edit</button><button class="x" data-rm="${i.id}">Remove</button></div></div>`).join('')||'<p class="mu">No items yet.</p>'}</div>`}
+const blankDen=()=>({id:uid(),label:'',amt:1,price:0,cost:0});
+function vStock(){if(ed)return vEdit();const st=stock(),l=S.items.filter(i=>!i.x).sort((a,b)=>a.name.localeCompare(b.name));
+ $('#v').innerHTML=`<div class="r" style="margin-bottom:12px"><button class="pri" style="margin:0;background:var(--ac);color:var(--pp)" data-nw>+ New item</button><button class="ghost" style="margin:0" data-pl>Print price list</button></div>
+<div class="card">${l.map(i=>`<div class="row" style="display:block"><b>${esc(i.name)}</b> <span class="mu">· <span class="${st[i.id]<=3?'low':''}">${st[i.id]} ${esc(i.unit)} in stock</span></span><div class="mu">${i.den.map(d=>esc(d.label)+' '+d.price+(d.cost?' (cost '+d.cost+')':'')).join(' · ')}</div><div class="acts"><button class="sm" data-stk="${i.id}">Add stock</button><button class="sm" data-set="${i.id}">Set count</button><button class="sm" data-ed="${i.id}">Edit</button><button class="sm" data-rm="${i.id}">Remove</button></div></div>`).join('')||'<p class="mu">No items yet. Tap “New item”.</p>'}</div>`}
+function vEdit(){$('#v').innerHTML=`<div class="card"><b>${ed.id?'Edit item':'New item'}</b>
+<div class="r" style="margin-top:8px"><label>Item name<input data-ef="name" value="${esc(ed.name)}" placeholder="e.g. Cooking oil"></label></div>
+<div class="r"><label>Stock unit<input data-ef="unit" value="${esc(ed.unit)}" placeholder="L, kg, pcs"></label>${ed.id?'':`<label>Starting stock<input data-ef="start" type="number" inputmode="decimal" value="${ed.start}"></label>`}</div>
+<p class="mu" style="margin:12px 0 0"><b>Sizes you sell</b> — for each, type how much stock it uses, your selling price and your buying price.</p>
+${ed.den.map((d,i)=>`<div class="er"><input data-di="${i}" data-df="label" value="${esc(d.label)}" placeholder="Size name e.g. 250 ml"><div class="r"><label>Uses (${esc(ed.unit||'unit')})<input data-di="${i}" data-df="amt" type="number" inputmode="decimal" value="${d.amt}"></label><label>Sell KES<input data-di="${i}" data-df="price" type="number" inputmode="decimal" value="${d.price}"></label><label>Buy KES<input data-di="${i}" data-df="cost" type="number" inputmode="decimal" value="${d.cost}"></label></div><div class="acts"><button class="sm" data-dup="${i}">Duplicate</button>${ed.den.length>1?`<button class="sm" data-dx="${i}">Remove size</button>`:''}</div></div>`).join('')}
+<button class="ghost" style="margin-top:8px" data-ad>+ Add another size</button><button class="pri" data-isave>Save item</button><button class="ghost" style="margin-top:8px" data-icancel>Cancel</button></div>`}
 /* CALC */
+let acc=null,op=null,typed=false,cd='0',ce='';
 function vCalc(){const k=['C','⌫','%','÷','7','8','9','×','4','5','6','−','1','2','3','+','0','.','00','='];
  $('#v').innerHTML=`<div class="card"><div id="ce">${ce}</div><div id="cd">${cd}</div><div class="pad" style="margin-top:10px">${k.map(x=>`<button class="${'÷×−+='.includes(x)?'op':''}" data-k="${x}">${x}</button>`).join('')}</div></div>`}
-function ev(s){const t=s.replace(/÷/g,'/').replace(/×/g,'*').replace(/−/g,'-').replace(/(\d+\.?\d*)%/g,'($1/100)');if(!/^[0-9+\-*/.()\s]+$/.test(t))return NaN;try{return Function('"use strict";return('+t+')')()}catch(e){return NaN}}
-function calc(k){if(k==='C'){ce='';cd='0'}else if(k==='⌫')cd=cd.length>1?cd.slice(0,-1):'0';
- else if(k==='='){const r=ev(ce+cd);if(isFinite(r)){ce='';cd=String(Math.round(r*1e8)/1e8)}}
- else if('÷×−+'.includes(k)){ce+=cd+k;cd='0'}else if(k==='%')cd+='%';
- else if(k==='.'){if(!cd.includes('.'))cd+='.'}else cd=cd==='0'?k.replace(/^0+/,'')||'0':cd+k;
+function calc(k){const n=()=>parseFloat(cd)||0,r=x=>String(Math.round(x*1e8)/1e8),ap=(a,o,b)=>o==='+'?a+b:o==='−'?a-b:o==='×'?a*b:(b===0?0:a/b);
+ if(k==='C'){acc=null;op=null;typed=false;cd='0';ce=''}
+ else if(k==='⌫'){if(typed)cd=cd.length>1?cd.slice(0,-1):'0'}
+ else if(k==='='){if(op&&acc!==null){cd=r(ap(acc,op,n()));acc=null;op=null;ce='';typed=false}}
+ else if('÷×−+'.includes(k)){if(acc===null)acc=n();else if(typed)acc=ap(acc,op,n());op=k;typed=false;cd=r(acc);ce=cd+' '+k}
+ else if(k==='%'){cd=r(acc!==null&&(op==='+'||op==='−')?acc*n()/100:n()/100);typed=true}
+ else if(k==='.'){if(!typed){cd='0.';typed=true}else if(!cd.includes('.'))cd+='.'}
+ else{if(!typed){cd=k==='00'?'0':k;typed=true}else cd=cd==='0'?(k==='00'?'0':k):cd+k}
  $('#ce').textContent=ce;$('#cd').textContent=cd}
 /* SETTINGS */
 function vSet(){$('#v').innerHTML=`<div class="card"><b>Sync across devices (GitHub Gist)</b><p class="mu">Your sales and stock are saved in a private Gist on your own GitHub account. Create a token at github.com/settings/tokens (classic, tick only “gist”), paste it here, and use the same token on any other device. The token stays on this device.</p>
-<label>GitHub token<input id="tk" type="password" value="${esc(S.tok)}" placeholder="ghp_…" autocomplete="off"></label><button class="pri" style="background:var(--ac);color:var(--pp)" data-tk>Save and sync now</button><p class="mu" id="sm">${msg||(S.gid?'Linked to your Gist.':'Not linked yet.')}</p></div>
+<label>GitHub token<input id="tk" type="password" value="${esc(S.tok)}" placeholder="ghp_…" autocomplete="off"></label><button class="pri" style="background:var(--ac);color:var(--pp)" data-tk>Save and sync now</button><p class="mu">${msg||(S.gid?'Linked to your Gist.':'Not linked yet.')}</p></div>
+<div class="card"><b>Exports</b><p class="mu">Open the CSV files in Excel or Google Sheets.</p><button class="ghost" data-ea>All sales, every day (CSV)</button><button class="ghost" data-es>Stock and prices (CSV)</button></div>
 <div class="card"><b>Backup</b><p class="mu">A file copy of everything on this phone.</p><button class="ghost" data-ex>Download backup</button><label class="ghost" style="display:block;text-align:center;border-radius:12px">Restore backup<input type="file" id="rf" accept=".json" hidden></label></div>`;
  $('#rf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.items)||!Array.isArray(d.sales))throw 0;mergeIn(d);changed();alert('Backup restored.')}catch(x){alert('That file is not a valid backup.')}}}
+/* EXPORTS */
+const cq=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+const drow=(s,wd)=>[...(wd?[s.d]:[]),hm(s.t),cq(s.name),cq(s.lab||''),s.qty,s.price,s.qty*s.price,s.cost==null?'':s.cost,s.cost==null?'':s.qty*(s.price-s.cost),s.pay].join(',');
+const dhead=wd=>(wd?'Date,':'')+'Time,Item,Size,Qty,Unit price,Total,Buying price,Profit,Payment';
+function dl(c,n,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:m}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+function expDay(){const t=sums(day),l=S.sales.filter(s=>s.d===day&&!s.v).sort((a,b)=>a.t-b.t);
+ dl(['Date,'+day,'Cash sales,'+t.c,'M-Pesa sales,'+t.m,'Total sales,'+t.t,'Profit,'+t.p,'Number of sales,'+t.n,'',dhead(),...l.map(s=>drow(s))].join('\n'),'sales-'+day+'.csv','text/csv')}
+function expAll(){dl([dhead(1),...S.sales.filter(s=>!s.v).sort((a,b)=>a.t-b.t).map(s=>drow(s,1))].join('\n'),'all-sales-'+today()+'.csv','text/csv')}
+function expStock(){const st=stock(),r=['Item,Unit,In stock,Size,Uses,Sell price,Buying price'];S.items.filter(i=>!i.x).forEach(i=>i.den.forEach(d=>r.push([cq(i.name),cq(i.unit),st[i.id],cq(d.label),d.amt,d.price,d.cost||''].join(','))));dl(r.join('\n'),'stock-'+today()+'.csv','text/csv')}
+function priceList(){const l=S.items.filter(i=>!i.x).sort((a,b)=>a.name.localeCompare(b.name));
+ const h=`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Price list</title><style>body{font:18px system-ui,sans-serif;margin:24px;color:#111}h1{margin:0 0 4px;font-size:30px}.d{color:#666;margin-bottom:18px}.g{columns:2;column-gap:36px}.b{break-inside:avoid;margin-bottom:16px;border-top:3px solid #d62828;padding-top:6px}.b h2{font-size:20px;margin:0 0 4px}.p{display:flex;justify-content:space-between;border-bottom:1px dotted #aaa;padding:2px 0}.p b{font-size:20px}button{font:inherit;padding:10px 18px;margin-bottom:16px}@media print{button{display:none}body{margin:12mm}}</style></head><body><button onclick="print()">Print</button><h1>Price list</h1><div class="d">Prices in KES · ${today()}</div><div class="g">${l.map(i=>`<div class="b"><h2>${esc(i.name)}</h2>${i.den.map(d=>`<div class="p"><span>${esc(d.label)}</span><b>${d.price}</b></div>`).join('')}</div>`).join('')}</div></body></html>`;
+ const w=window.open('','_blank');if(w){w.document.write(h);w.document.close()}else dl(h,'price-list.html','text/html')}
 /* ACTIONS */
 document.addEventListener('click',e=>{const t=e.target.closest('button,label');if(!t)return;const d=t.dataset;
  if(d.t){tab=d.t;if(tab==='day')day=today();render();return}
- if(d.add){const i=S.items.find(x=>x.id===d.add),b=bk.find(x=>x.id===i.id);b?b.qty++:bk.push({id:i.id,name:i.name,qty:1,price:i.price});basket()}
+ if(d.add){const i=S.items.find(x=>x.id===d.add);if(i.den.length===1)addLine(i,i.den[0]);else{pick=pick===i.id?null:i.id;picker();window.scrollTo(0,0)}}
+ else if(d.dn){const[a,b]=d.dn.split('|'),i=S.items.find(x=>x.id===a);addLine(i,i.den.find(x=>x.id===b))}
+ else if(d.cu){const i=S.items.find(x=>x.id===d.cu),a=+$('#ca').value,p=$('#cp').value;if(!(a>0)||p===''||+p<0)return alert('Enter the amount and the price.');addLine(i,{label:'Custom '+a+' '+i.unit,amt:a,price:+p,cost:null},1)}
+ else if(d.pc!==undefined){pick=null;picker()}
  else if(d.m!==undefined){const b=bk[d.m];b.qty--;if(b.qty<1)bk.splice(d.m,1);basket()}
  else if(d.p!==undefined){bk[d.p].qty++;basket()}else if(d.r!==undefined){bk.splice(d.r,1);basket()}
  else if(d.py){pay=d.py;basket()}
- else if(d.ch!==undefined){if(bk.some(b=>!(b.price>=0)))return;const st=stock(),over=bk.filter(b=>b.qty>st[b.id]);if(over.length&&!confirm('Not enough stock for: '+over.map(o=>o.name).join(', ')+'. Record anyway?'))return;
-  const n=Date.now();bk.forEach((b,i)=>S.sales.push({id:uid(),t:n+i,d:today(),item:b.id,name:b.name,qty:b.qty,price:b.price,pay}));bk=[];changed()}
+ else if(d.ch!==undefined){if(bk.some(b=>!(b.price>=0)))return;const st=stock(),use={};bk.forEach(b=>use[b.item]=(use[b.item]||0)+b.amt*b.qty);
+  const over=Object.keys(use).filter(k=>use[k]>st[k]+1e-9);if(over.length&&!confirm('Not enough stock for: '+over.map(k=>S.items.find(i=>i.id===k).name).join(', ')+'. Record anyway?'))return;
+  const n=Date.now();bk.forEach((b,i)=>S.sales.push({id:uid(),t:n+i,d:today(),item:b.item,name:b.name,lab:b.label,qty:b.qty,amt:rd3(b.amt*b.qty),price:b.price,cost:b.cost,pay}));bk=[];changed()}
  else if(d.v){const s=S.sales.find(x=>x.id===d.v);if(s&&confirm('Remove this sale? Stock is returned.')){s.v=1;changed()}}
  else if(d.dd){const x=new Date(day+'T12:00:00');x.setDate(x.getDate()+ +d.dd);day=ymd(x);render()}
- else if(d.csv!==undefined){const l=S.sales.filter(s=>s.d===day&&!s.v),c='time,item,qty,price,total,payment\n'+l.map(s=>[hm(s.t),'"'+s.name.replace(/"/g,'""')+'"',s.qty,s.price,s.qty*s.price,s.pay].join(',')).join('\n');dl(c,'sales-'+day+'.csv','text/csv')}
- else if(d.save!==undefined){const n=$('#an').value.trim(),p=$('#ap').value,qn=+$('#aq').value||0;if(!n||p===''||+p<0)return alert('Enter a name and a price.');
-  const i=S.items.find(x=>!x.x&&x.name.toLowerCase()===n.toLowerCase()),now=Date.now();
-  if(i){const cur=stock()[i.id];i.price=+p;i.base=cur+qn;i.bt=now;i.u=now}else S.items.push({id:uid(),name:n,price:+p,base:qn,bt:now,u:now});changed()}
- else if(d.ed){const i=S.items.find(x=>x.id===d.ed);$('#an').value=i.name;$('#ap').value=i.price;$('#aq').value='';$('#an').focus()}
+ else if(d.csv!==undefined)expDay();else if(d.ea!==undefined)expAll();else if(d.es!==undefined)expStock();else if(d.pl!==undefined)priceList();
+ else if(d.nw!==undefined){ed={id:null,name:'',unit:'pcs',start:'',den:[blankDen()]};render()}
+ else if(d.ed){const i=S.items.find(x=>x.id===d.ed);ed={id:i.id,name:i.name,unit:i.unit,den:JSON.parse(JSON.stringify(i.den))};render()}
+ else if(d.ad!==undefined){ed.den.push(blankDen());vEdit()}
+ else if(d.dup!==undefined){ed.den.splice(+d.dup+1,0,{...ed.den[d.dup],id:uid()});vEdit()}
+ else if(d.dx!==undefined){ed.den.splice(d.dx,1);vEdit()}
+ else if(d.icancel!==undefined){ed=null;render()}
+ else if(d.isave!==undefined){const n=ed.name.trim();if(!n||!ed.unit.trim())return alert('Enter the item name and its stock unit.');
+  if(ed.den.some(x=>!x.label.trim()||!(+x.amt>0)||x.price===''||+x.price<0))return alert('Each size needs a name, an amount used (above 0) and a selling price.');
+  const den=ed.den.map(x=>({id:x.id,label:x.label.trim(),amt:+x.amt,price:+x.price,cost:+x.cost||0})),now=Date.now();
+  if(ed.id){const i=S.items.find(x=>x.id===ed.id);Object.assign(i,{name:n,unit:ed.unit.trim(),den,u:now})}else S.items.push({id:uid(),name:n,unit:ed.unit.trim(),base:+ed.start||0,bt:now,u:now,den});ed=null;changed()}
+ else if(d.stk||d.set){const i=S.items.find(x=>x.id===(d.stk||d.set)),v=parseFloat(prompt((d.stk?'Add how many ':'Counted stock of ')+i.unit+' — '+i.name+'?'));if(isNaN(v)||v<(d.stk?0.0001:0))return;const now=Date.now();i.base=d.stk?stock()[i.id]+v:v;i.bt=now;i.u=now;changed()}
  else if(d.rm){const i=S.items.find(x=>x.id===d.rm);if(confirm('Remove '+i.name+'? Past sales are kept.')){i.x=1;i.u=Date.now();changed()}}
  else if(d.k)calc(d.k);
  else if(d.tk!==undefined){S.tok=$('#tk').value.trim();persist();sync()}
  else if(d.ex!==undefined)dl(JSON.stringify({items:S.items,sales:S.sales,floats:S.floats}),'duka-backup-'+today()+'.json','application/json')});
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset.pr!==undefined){bk[t.dataset.pr].price=+t.value;bt()}else if(t.id==='td')bt()});
-function dl(c,n,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:m}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+document.addEventListener('input',e=>{const t=e.target,d=t.dataset;if(d.pr!==undefined){bk[d.pr].price=+t.value;bt()}else if(t.id==='td')bt();
+ else if(d.ef)ed[d.ef]=t.value;else if(d.di!==undefined)ed.den[d.di][d.df]=t.type==='number'?t.value:t.value});
 /* SYNC */
-function mergeIn(d){const im=new Map(S.items.map(i=>[i.id,i]));(d.items||[]).forEach(i=>{const o=im.get(i.id);if(!o||(i.u||0)>(o.u||0))im.set(i.id,i)});S.items=[...im.values()];
+function mergeIn(d){const im=new Map(S.items.map(i=>[i.id,i]));(d.items||[]).forEach(i=>{const o=im.get(i.id);if(!o||(i.u||0)>(o.u||0))im.set(i.id,i)});S.items=[...im.values()];mig();
  const sm=new Map(S.sales.map(s=>[s.id,s]));(d.sales||[]).forEach(s=>{const o=sm.get(s.id);if(!o)sm.set(s.id,s);else if(s.v)o.v=1});S.sales=[...sm.values()];
  Object.entries(d.floats||{}).forEach(([k,f])=>{if(!S.floats[k]||(f.u||0)>(S.floats[k].u||0))S.floats[k]=f})}
 function build(){const o={'core.json':JSON.stringify({items:[...S.items].sort((a,b)=>a.id<b.id?-1:1),floats:S.floats})},m={};
