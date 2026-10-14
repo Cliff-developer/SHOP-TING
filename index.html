@@ -47,7 +47,7 @@ nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;st
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .den{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}.den button{background:var(--bg);border:0;border-left:5px solid var(--red);border-radius:10px;padding:10px;text-align:left;color:var(--ink);display:flex;flex-direction:column}
 .er{border-top:1px solid var(--ln);padding:10px 0}.er .r{margin-top:6px}.sm{background:none;border:1.5px solid var(--ln);color:var(--ink);border-radius:8px;padding:6px 10px;font-size:13px}.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.tape .l{flex-wrap:wrap;gap:4px 12px}
+.tape .l{flex-wrap:wrap;gap:4px 12px}.ok{color:var(--ok)}
 </style></head><body>
 <header><h1>Duka</h1><span id="chip"></span><button class="ib" data-t="set" aria-label="Sync and backup">⚙</button></header>
 <main id="v"></main>
@@ -56,6 +56,7 @@ nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;st
 <button data-t="day"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Ledger</button>
 <button data-t="stock"><svg viewBox="0 0 24 24"><path d="M3 8l9-5 9 5v9l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v9"/></svg>Stock</button>
 <button data-t="calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h2M12 12h2M8 16h2M12 16h2"/></svg>Calc</button>
+<button data-t="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>More</button>
 </nav>
 <script>
 const K='duka2',$=s=>document.querySelector(s),money=n=>'KES '+(Math.round(n*100)/100).toLocaleString('en-KE');
@@ -63,17 +64,17 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6),rd3=x=>Math.round(x*1000)/1000;
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const today=()=>ymd(new Date()),hm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-let S={items:[],sales:[],floats:{},tok:'',gid:'',at:0};
+let S={items:[],sales:[],floats:{},out:[],cr:[],notes:[],tok:'',gid:'',at:0};
 try{Object.assign(S,JSON.parse(localStorage.getItem(K)||'{}'))}catch(e){}
 function mig(){S.items.forEach(i=>{if(!i.den){i.den=[{id:'d1',label:'1 pc',amt:1,price:i.price||0,cost:0}];i.unit=i.unit||'pcs'}})}mig();
-let tab='sell',day=today(),bk=[],pay='Cash',q='',timer,busy=false,msg='',pick=null,ed=null;
+let tab='sell',day=today(),bk=[],pay='Cash',q='',timer,busy=false,msg='',pick=null,ed=null,sub='',per='all',expPay='Cash',openC=null;
 const persist=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){alert('Phone storage is full or blocked – export a backup now.')}};
 function changed(){persist();render();clearTimeout(timer);timer=setTimeout(sync,1500)}
 const amtOf=s=>s.amt!=null?s.amt:s.qty;
 function stock(){const m={},im={};S.items.forEach(i=>{m[i.id]=i.base;im[i.id]=i});S.sales.forEach(s=>{const i=im[s.item];if(!s.v&&i&&s.t>i.bt)m[i.id]-=amtOf(s)});for(const k in m)m[k]=rd3(m[k]);return m}
-function sums(d){let c=0,m=0,n=0,p=0;S.sales.forEach(s=>{if(s.d===d&&!s.v){const v=s.qty*s.price;n++;s.pay==='M-Pesa'?m+=v:c+=v;if(s.cost!=null)p+=v-s.qty*s.cost}});return{c,m,n,p,t:c+m}}
-function tape(d,title){const t=sums(d);return`<div class="tape"><div class="mu">${title}</div><div class="t">${money(t.t)}</div><div class="l"><span>Cash ${money(t.c)}</span><span>M-Pesa ${money(t.m)}</span><span>${t.n} sales</span><span><b>Profit ${money(t.p)}</b></span></div></div>`}
-function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));({sell:vSell,day:vDay,stock:vStock,calc:vCalc,set:vSet})[tab]();stat()}
+function sums(d){let c=0,m=0,k=0,n=0,p=0;S.sales.forEach(s=>{if(s.d===d&&!s.v){const v=s.qty*s.price;n++;s.pay==='M-Pesa'?m+=v:s.pay==='Credit'?k+=v:c+=v;if(s.cost!=null)p+=v-s.qty*s.cost}});return{c,m,k,n,p,t:c+m+k}}
+function tape(d,title){const t=sums(d);return`<div class="tape"><div class="mu">${title}</div><div class="t">${money(t.t)}</div><div class="l"><span>Cash ${money(t.c)}</span><span>M-Pesa ${money(t.m)}</span>${t.k?`<span>Credit ${money(t.k)}</span>`:''}<span>${t.n} sales</span><span><b>Profit ${money(t.p)}</b></span></div></div>`}
+function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));({sell:vSell,day:vDay,stock:vStock,calc:vCalc,more:vMore})[tab]();stat()}
 function stat(){$('#chip').textContent=busy?'Syncing…':msg||(!S.tok?'Saved on phone':!navigator.onLine?'Offline · saved':S.at?'Synced '+hm(S.at):'Not synced yet')}
 /* SELL */
 function vSell(){$('#v').innerHTML=tape(today(),'Today')+'<div id="bk"></div><div id="pk"></div><input id="q" placeholder="Search items" value="'+esc(q)+'"><div id="gr" class="grid"></div>';
@@ -87,20 +88,22 @@ function addLine(i,d,custom){const key=custom?'c'+uid():i.id+'|'+d.id,b=bk.find(
  if(b)b.qty++;else bk.push({key,item:i.id,name:i.name,label:d.label,amt:d.amt,qty:1,price:d.price,cost:d.cost==null?null:d.cost});pick=null;basket();picker()}
 function basket(){const el=$('#bk');if(!el)return;if(!bk.length){el.innerHTML='';return}
  el.innerHTML=`<div class="card">${bk.map((b,i)=>`<div class="bl"><div><b>${esc(b.name)}</b><div class="mu">${esc(b.label)}</div></div><div class="stp"><button data-m="${i}">−</button><b>${b.qty}</b><button data-p="${i}">+</button></div><input class="pr" type="number" inputmode="decimal" value="${b.price}" data-pr="${i}"><button class="x" data-r="${i}">✕</button></div>`).join('')}
-<div class="seg"><button data-py="Cash" class="${pay==='Cash'?'on':''}">Cash</button><button data-py="M-Pesa" class="${pay==='M-Pesa'?'on':''}">M-Pesa</button></div>
-<div class="tot"><span>Total</span><span id="bt"></span></div><div class="r"><input id="td" type="number" inputmode="decimal" placeholder="Cash given (optional)"><div id="ch" class="mu"></div></div>
+<div class="seg"><button data-py="Cash" class="${pay==='Cash'?'on':''}">Cash</button><button data-py="M-Pesa" class="${pay==='M-Pesa'?'on':''}">M-Pesa</button><button data-py="Credit" class="${pay==='Credit'?'on':''}">Credit</button></div>
+<div class="tot"><span>Total</span><span id="bt"></span></div>${pay==='Credit'?`<input id="cn" list="cl" placeholder="Customer name" autocomplete="off"><datalist id="cl">${credBal().map(c=>`<option value="${esc(c.who)}">`).join('')}</datalist>`:`<div class="r"><input id="td" type="number" inputmode="decimal" placeholder="Cash given (optional)"><div id="ch" class="mu"></div></div>`}
 <button class="pri" data-ch>Record sale</button></div>`;bt()}
-function bt(){const t=bk.reduce((a,b)=>a+b.qty*b.price,0),g=+($('#td')||{}).value;$('#bt').textContent=money(t);$('#ch').textContent=g&&pay==='Cash'?(g>=t?'Change '+money(g-t):'Short '+money(t-g)):''}
+function bt(){const t=bk.reduce((a,b)=>a+b.qty*b.price,0),g=+($('#td')||{}).value;$('#bt').textContent=money(t);if($('#ch'))$('#ch').textContent=g&&pay==='Cash'?(g>=t?'Change '+money(g-t):'Short '+money(t-g)):''}
 /* LEDGER */
 const sline=s=>`${esc(s.name)}${s.lab?' · '+esc(s.lab):''}`;
 function vDay(){const l=S.sales.filter(s=>s.d===day&&!s.v).sort((a,b)=>b.t-a.t),f=(S.floats[day]||{}).v||0;
  $('#v').innerHTML=`<div class="dn"><button data-dd="-1">‹</button><input type="date" id="dp" value="${day}"><button data-dd="1">›</button></div>${tape(day,day===today()?'Today':'Sales on')}
 <div class="card"><div class="r"><label>Opening float<input id="fl" type="number" inputmode="decimal" value="${f||''}"></label><label>Cash counted<input id="cc" type="number" inputmode="decimal"></label></div><div id="dx2"></div></div>
-<div class="card">${l.map(s=>`<div class="row"><div><b>${sline(s)}</b><div class="mu">${s.qty} × ${money(s.price)} · ${s.pay} · ${hm(s.t)}</div></div><div class="rt"><b>${money(s.qty*s.price)}</b> <button class="x" data-v="${s.id}" aria-label="Remove sale">✕</button></div></div>`).join('')||'<p class="mu">No sales on this day.</p>'}</div><button class="ghost" data-csv>Export this day (CSV)</button>`;
+<div class="card">${l.map(s=>`<div class="row"><div><b>${sline(s)}</b><div class="mu">${s.qty} × ${money(s.price)} · ${s.pay} · ${hm(s.t)}</div></div><div class="rt"><b>${money(s.qty*s.price)}</b> <button class="x" data-v="${s.id}" aria-label="Remove sale">✕</button></div></div>`).join('')||'<p class="mu">No sales on this day.</p>'}</div>${outCard()}<button class="ghost" data-csv>Export this day (CSV)</button>`;
  $('#dp').onchange=e=>{day=e.target.value||today();render()};
  $('#fl').oninput=e=>{S.floats[day]={v:+e.target.value||0,u:Date.now()};persist();clearTimeout(timer);timer=setTimeout(sync,1500);cnt()};$('#cc').oninput=cnt;cnt()}
-function cnt(){const exp=sums(day).c+(+$('#fl').value||0),g=$('#cc').value,d=+g-exp;
- $('#dx2').innerHTML='<p style="font-weight:600;margin:10px 0 0">Cash expected in drawer: '+money(exp)+(g!==''?'<br><span class="'+(d<0?'low':'')+'">'+(d===0?'Balanced ✓':(d<0?'Short ':'Over ')+money(Math.abs(d)))+'</span>':'')+'</p>'}
+function drawer(d){const t=sums(d);let ex=0,sb=0,cr=0;S.out.forEach(o=>{if(o.d===d&&!o.v&&o.pay==='Cash')o.k==='stk'?sb+=o.amt:ex+=o.amt});S.cr.forEach(c=>{if(c.d===d&&!c.v&&c.kind==='pay'&&c.pay==='Cash')cr+=c.amt});const f=(S.floats[d]||{}).v||0;return{f,cash:t.c,cr,ex,sb,exp:f+t.c+cr-ex-sb}}
+function cnt(){const w=drawer(day),f=+$('#fl').value||0,exp=w.exp-w.f+f,g=$('#cc').value,d=+g-exp;
+ $('#dx2').innerHTML='<p style="font-weight:600;margin:10px 0 0">Cash expected in drawer: '+money(exp)+'</p><p class="mu" style="margin:2px 0 0">Float '+money(f)+' + cash sales '+money(w.cash)+(w.cr?' + credit repaid '+money(w.cr):'')+(w.ex?' − expenses '+money(w.ex):'')+(w.sb?' − stock bought '+money(w.sb):'')+'</p>'+(g!==''?'<p class="'+(d<0?'low':'')+'" style="font-weight:600;margin:6px 0 0">'+(d===0?'Balanced ✓':(d<0?'Short ':'Over ')+money(Math.abs(d)))+'</p>':'')}
+function outCard(){const l=S.out.filter(o=>o.d===day&&!o.v);return`<div class="card"><b>Money out</b>${l.map(o=>`<div class="row"><div>${esc(o.what)}<div class="mu">${o.k==='stk'?'Stock bought':'Expense'} · ${o.pay}</div></div><div class="rt"><b>${money(o.amt)}</b> <button class="x" data-ov="${o.id}">✕</button></div></div>`).join('')||'<p class="mu">Nothing today. Expenses and stock bought show here.</p>'}</div>`}
 /* STOCK */
 const blankDen=()=>({id:uid(),label:'',amt:1,price:0,cost:0});
 function vStock(){if(ed)return vEdit();const st=stock(),l=S.items.filter(i=>!i.x).sort((a,b)=>a.name.localeCompare(b.name));
@@ -125,6 +128,29 @@ function calc(k){const n=()=>parseFloat(cd)||0,r=x=>String(Math.round(x*1e8)/1e8
  else if(k==='.'){if(!typed){cd='0.';typed=true}else if(!cd.includes('.'))cd+='.'}
  else{if(!typed){cd=k==='00'?'0':k;typed=true}else cd=cd==='0'?(k==='00'?'0':k):cd+k}
  $('#ce').textContent=ce;$('#cd').textContent=cd}
+/* MORE */
+function credBal(){const m={};S.cr.forEach(c=>{if(c.v)return;const k=c.who.trim().toLowerCase(),r=m[k]=m[k]||{key:k,who:c.who.trim(),bal:0,l:[]};r.bal+=c.kind==='owe'?c.amt:-c.amt;r.l.push(c)});return Object.values(m).sort((a,b)=>b.bal-a.bal)}
+function vMore(){if(sub){({prod:vProd,cred:vCred,exp:vExp,notes:vNotes,set:vSet})[sub]();$('#v').insertAdjacentHTML('afterbegin','<button class="sm" data-sub="" style="margin-bottom:10px">‹ More</button>');return}
+ const owed=credBal().reduce((a,b)=>a+Math.max(b.bal,0),0);
+ $('#v').innerHTML=`<div class="card">${[['prod','Products & profit','Which items earn, which to replace'],['cred','Credit (deni)',owed>0?money(owed)+' owed to you':'Who owes you'],['exp','Expenses','Lunch, transport, other costs'],['notes','Customer requests','Things clients ask for'],['set','Sync, exports & backup','GitHub Gist, CSV, backup']].map(r=>`<button class="ghost" style="text-align:left;margin-bottom:8px" data-sub="${r[0]}"><b>${r[1]}</b><div class="mu">${r[2]}</div></button>`).join('')}</div>`}
+function vProd(){const from=per==='7'?Date.now()-7*864e5:per==='30'?Date.now()-30*864e5:0,m={};
+ S.sales.forEach(s=>{if(s.v||s.t<from)return;const r=m[s.item]=m[s.item]||{name:s.name,rev:0,cs:0,pr:0,n:0};r.name=s.name;const v=s.qty*s.price;r.rev+=v;r.n++;if(s.cost!=null){r.cs+=v;r.pr+=v-s.qty*s.cost}});
+ const l=Object.values(m),TR=l.reduce((a,r)=>a+r.rev,0),TP=l.reduce((a,r)=>a+r.pr,0),TC=l.reduce((a,r)=>a+r.cs,0),avg=TC?TP/TC:0,ex=S.out.filter(o=>o.k==='exp'&&!o.v&&o.t>=from).reduce((a,o)=>a+o.amt,0);
+ l.forEach(r=>{r.mg=r.cs?r.pr/r.cs:null;let a=['OK — in line with your other items',''];
+  if(!r.cs)a=['Add a buying price to see its profit','mu'];else if(r.pr<0)a=['Selling below cost — raise the price or change supplier','low'];else if(r.n<3)a=['Too few sales to judge yet','mu'];else if(r.mg<.1||r.mg<avg*.6)a=['Low return — look for a cheaper supplier or a better-paying alternative','low'];else if(r.mg>avg*1.3)a=['Strong earner — keep it well stocked','ok'];r.a=a});
+ l.sort((a,b)=>b.pr-a.pr);
+ $('#v').innerHTML=`<div class="seg">${[['7','7 days'],['30','30 days'],['all','All time']].map(p=>`<button data-per="${p[0]}" class="${per===p[0]?'on':''}">${p[1]}</button>`).join('')}</div>
+<div class="tape"><div class="mu">Profit on sales</div><div class="t">${money(TP)}</div><div class="l"><span>Sales ${money(TR)}</span><span>Expenses ${money(ex)}</span><span><b>Net ${money(TP-ex)}</b></span></div></div>
+${l.map(r=>`<div class="card"><div class="r" style="align-items:center"><b>${esc(r.name)}</b><b style="text-align:right">${money(r.pr)}</b></div><div class="mu">${r.mg==null?'No buying price set':Math.round(r.mg*100)+'% margin'} · sales ${money(r.rev)} · ${r.n} sale${r.n>1?'s':''}${TP>0&&r.pr>0?' · '+Math.round(r.pr/TP*100)+'% of profit':''}</div><div class="${r.a[1]}" style="margin-top:4px;font-size:14px">${r.a[0]}</div></div>`).join('')||'<p class="mu">No sales in this period yet.</p>'}`}
+function vCred(){const l=credBal();
+ $('#v').innerHTML=`<div class="card"><b>Add credit given</b><div class="r" style="margin-top:8px"><input id="cw" list="cl2" placeholder="Customer name" autocomplete="off"><datalist id="cl2">${l.map(c=>`<option value="${esc(c.who)}">`).join('')}</datalist><input id="cm" type="number" inputmode="decimal" placeholder="Amount"></div><div class="r" style="margin-top:8px"><input id="cnote" placeholder="What for (optional)"><button class="sm" style="flex:0" data-cadd>Add</button></div><p class="mu">Credit sales made on the Sell tab appear here automatically.</p></div>
+${l.map(c=>`<div class="card"><div class="r" style="align-items:center"><b>${esc(c.who)}</b><b style="text-align:right" class="${c.bal>0?'low':''}">${money(c.bal)}</b></div><div class="acts"><button class="sm" data-cpay="${esc(c.key)}">Payment received</button><button class="sm" data-chist="${esc(c.key)}">${openC===c.key?'Hide history':'History'}</button></div>${openC===c.key?c.l.slice().sort((a,b)=>b.t-a.t).map(e=>`<div class="row"><div>${e.kind==='owe'?'Took':'Paid'}${e.note?' · '+esc(e.note):''}<div class="mu">${e.d}${e.pay?' · '+e.pay:''}</div></div><div class="rt">${e.kind==='owe'?'+':'−'}${money(e.amt)} <button class="x" data-cv="${e.id}">✕</button></div></div>`).join(''):''}</div>`).join('')||'<p class="mu">No credit records yet.</p>'}`}
+function vExp(){const l=S.out.filter(o=>o.k==='exp'&&!o.v).sort((a,b)=>b.t-a.t),mo=today().slice(0,7),tm=l.filter(o=>o.d.slice(0,7)===mo).reduce((a,o)=>a+o.amt,0),td=l.filter(o=>o.d===today()).reduce((a,o)=>a+o.amt,0);
+ $('#v').innerHTML=`<div class="card"><b>Add expense</b><div class="r" style="margin-top:8px"><input id="ew" placeholder="e.g. Lunch"><input id="ea" type="number" inputmode="decimal" placeholder="KES"></div><div class="seg"><button data-ep="Cash" class="${expPay==='Cash'?'on':''}">Cash</button><button data-ep="M-Pesa" class="${expPay==='M-Pesa'?'on':''}">M-Pesa</button></div><button class="pri" style="margin:0" data-eadd>Save expense</button><p class="mu">Cash expenses reduce the cash expected in your drawer.</p></div>
+<div class="card"><div class="mu">Today ${money(td)} · This month ${money(tm)}</div>${l.slice(0,60).map(o=>`<div class="row"><div>${esc(o.what)}<div class="mu">${o.d} · ${o.pay}</div></div><div class="rt"><b>${money(o.amt)}</b> <button class="x" data-ov="${o.id}">✕</button></div></div>`).join('')||'<p class="mu">No expenses yet.</p>'}</div>`}
+function vNotes(){const l=S.notes.filter(n=>!n.x).sort((a,b)=>(+!!a.done-+!!b.done)||(b.n-a.n));
+ $('#v').innerHTML=`<div class="card"><b>Customer requests</b><p class="mu">Write down what clients ask for that you don't sell yet. Tap “+1 asked” each time someone asks, so the most wanted items rise to the top.</p><div class="r"><input id="nt" placeholder="e.g. Brown sugar 1 kg"><button class="sm" style="flex:0" data-nadd>Add</button></div></div>
+<div class="card">${l.map(n=>`<div class="row"><div><b style="${n.done?'text-decoration:line-through;opacity:.6':''}">${esc(n.txt)}</b><div class="mu">Asked ${n.n} time${n.n>1?'s':''}</div></div><div class="acts" style="margin:0"><button class="sm" data-nplus="${n.id}">+1 asked</button><button class="sm" data-ndone="${n.id}">${n.done?'Undo':'Stocked ✓'}</button><button class="sm" data-nrm="${n.id}">✕</button></div></div>`).join('')||'<p class="mu">No requests yet.</p>'}</div>`}
 /* SETTINGS */
 function vSet(){$('#v').innerHTML=`<div class="card"><b>Sync across devices (GitHub Gist)</b><p class="mu">Your sales and stock are saved in a private Gist on your own GitHub account. Create a token at github.com/settings/tokens (classic, tick only “gist”), paste it here, and use the same token on any other device. The token stays on this device.</p>
 <label>GitHub token<input id="tk" type="password" value="${esc(S.tok)}" placeholder="ghp_…" autocomplete="off"></label><button class="pri" style="background:var(--ac);color:var(--pp)" data-tk>Save and sync now</button><p class="mu">${msg||(S.gid?'Linked to your Gist.':'Not linked yet.')}</p></div>
@@ -136,8 +162,8 @@ const cq=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
 const drow=(s,wd)=>[...(wd?[s.d]:[]),hm(s.t),cq(s.name),cq(s.lab||''),s.qty,s.price,s.qty*s.price,s.cost==null?'':s.cost,s.cost==null?'':s.qty*(s.price-s.cost),s.pay].join(',');
 const dhead=wd=>(wd?'Date,':'')+'Time,Item,Size,Qty,Unit price,Total,Buying price,Profit,Payment';
 function dl(c,n,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:m}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
-function expDay(){const t=sums(day),l=S.sales.filter(s=>s.d===day&&!s.v).sort((a,b)=>a.t-b.t);
- dl(['Date,'+day,'Cash sales,'+t.c,'M-Pesa sales,'+t.m,'Total sales,'+t.t,'Profit,'+t.p,'Number of sales,'+t.n,'',dhead(),...l.map(s=>drow(s))].join('\n'),'sales-'+day+'.csv','text/csv')}
+function expDay(){const t=sums(day),w=drawer(day),l=S.sales.filter(s=>s.d===day&&!s.v).sort((a,b)=>a.t-b.t);
+ dl(['Date,'+day,'Cash sales,'+t.c,'M-Pesa sales,'+t.m,'Credit sales,'+t.k,'Total sales,'+t.t,'Profit,'+t.p,'Number of sales,'+t.n,'Credit repaid in cash,'+w.cr,'Expenses paid in cash,'+w.ex,'Stock bought with cash,'+w.sb,'Cash expected in drawer,'+w.exp,'',dhead(),...l.map(s=>drow(s))].join('\n'),'sales-'+day+'.csv','text/csv')}
 function expAll(){dl([dhead(1),...S.sales.filter(s=>!s.v).sort((a,b)=>a.t-b.t).map(s=>drow(s,1))].join('\n'),'all-sales-'+today()+'.csv','text/csv')}
 function expStock(){const st=stock(),r=['Item,Unit,In stock,Size,Uses,Sell price,Buying price'];S.items.filter(i=>!i.x).forEach(i=>i.den.forEach(d=>r.push([cq(i.name),cq(i.unit),st[i.id],cq(d.label),d.amt,d.price,d.cost||''].join(','))));dl(r.join('\n'),'stock-'+today()+'.csv','text/csv')}
 function priceList(){const l=S.items.filter(i=>!i.x).sort((a,b)=>a.name.localeCompare(b.name));
@@ -145,7 +171,7 @@ function priceList(){const l=S.items.filter(i=>!i.x).sort((a,b)=>a.name.localeCo
  const w=window.open('','_blank');if(w){w.document.write(h);w.document.close()}else dl(h,'price-list.html','text/html')}
 /* ACTIONS */
 document.addEventListener('click',e=>{const t=e.target.closest('button,label');if(!t)return;const d=t.dataset;
- if(d.t){tab=d.t;if(tab==='day')day=today();render();return}
+ if(d.t){if(d.t==='set'){tab='more';sub='set'}else{tab=d.t;if(tab==='more')sub=''}if(tab==='day')day=today();render();return}
  if(d.add){const i=S.items.find(x=>x.id===d.add);if(i.den.length===1)addLine(i,i.den[0]);else{pick=pick===i.id?null:i.id;picker();window.scrollTo(0,0)}}
  else if(d.dn){const[a,b]=d.dn.split('|'),i=S.items.find(x=>x.id===a);addLine(i,i.den.find(x=>x.id===b))}
  else if(d.cu){const i=S.items.find(x=>x.id===d.cu),a=+$('#ca').value,p=$('#cp').value;if(!(a>0)||p===''||+p<0)return alert('Enter the amount and the price.');addLine(i,{label:'Custom '+a+' '+i.unit,amt:a,price:+p,cost:null},1)}
@@ -153,10 +179,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('button,label');i
  else if(d.m!==undefined){const b=bk[d.m];b.qty--;if(b.qty<1)bk.splice(d.m,1);basket()}
  else if(d.p!==undefined){bk[d.p].qty++;basket()}else if(d.r!==undefined){bk.splice(d.r,1);basket()}
  else if(d.py){pay=d.py;basket()}
- else if(d.ch!==undefined){if(bk.some(b=>!(b.price>=0)))return;const st=stock(),use={};bk.forEach(b=>use[b.item]=(use[b.item]||0)+b.amt*b.qty);
+ else if(d.ch!==undefined){if(bk.some(b=>!(b.price>=0)))return;const who=pay==='Credit'?$('#cn').value.trim():'';if(pay==='Credit'&&!who)return alert('Type the customer name for this credit sale.');const st=stock(),use={};bk.forEach(b=>use[b.item]=(use[b.item]||0)+b.amt*b.qty);
   const over=Object.keys(use).filter(k=>use[k]>st[k]+1e-9);if(over.length&&!confirm('Not enough stock for: '+over.map(k=>S.items.find(i=>i.id===k).name).join(', ')+'. Record anyway?'))return;
-  const n=Date.now();bk.forEach((b,i)=>S.sales.push({id:uid(),t:n+i,d:today(),item:b.item,name:b.name,lab:b.label,qty:b.qty,amt:rd3(b.amt*b.qty),price:b.price,cost:b.cost,pay}));bk=[];changed()}
- else if(d.v){const s=S.sales.find(x=>x.id===d.v);if(s&&confirm('Remove this sale? Stock is returned.')){s.v=1;changed()}}
+  const n=Date.now();bk.forEach((b,i)=>{const cid=pay==='Credit'?uid():null;S.sales.push({id:uid(),t:n+i,d:today(),item:b.item,name:b.name,lab:b.label,qty:b.qty,amt:rd3(b.amt*b.qty),price:b.price,cost:b.cost,pay,cid});if(cid)S.cr.push({id:cid,t:n+i,d:today(),who,kind:'owe',amt:b.qty*b.price,note:b.name+' · '+b.label,pay:''})});bk=[];changed()}
+ else if(d.v){const s=S.sales.find(x=>x.id===d.v);if(s&&confirm('Remove this sale? Stock is returned.')){s.v=1;if(s.cid){const c=S.cr.find(x=>x.id===s.cid);if(c)c.v=1}changed()}}
  else if(d.dd){const x=new Date(day+'T12:00:00');x.setDate(x.getDate()+ +d.dd);day=ymd(x);render()}
  else if(d.csv!==undefined)expDay();else if(d.ea!==undefined)expAll();else if(d.es!==undefined)expStock();else if(d.pl!==undefined)priceList();
  else if(d.nw!==undefined){ed={id:null,name:'',unit:'pcs',start:'',den:[blankDen()]};render()}
@@ -169,19 +195,34 @@ document.addEventListener('click',e=>{const t=e.target.closest('button,label');i
   if(ed.den.some(x=>!x.label.trim()||!(+x.amt>0)||x.price===''||+x.price<0))return alert('Each size needs a name, an amount used (above 0) and a selling price.');
   const den=ed.den.map(x=>({id:x.id,label:x.label.trim(),amt:+x.amt,price:+x.price,cost:+x.cost||0})),now=Date.now();
   if(ed.id){const i=S.items.find(x=>x.id===ed.id);Object.assign(i,{name:n,unit:ed.unit.trim(),den,u:now})}else S.items.push({id:uid(),name:n,unit:ed.unit.trim(),base:+ed.start||0,bt:now,u:now,den});ed=null;changed()}
- else if(d.stk||d.set){const i=S.items.find(x=>x.id===(d.stk||d.set)),v=parseFloat(prompt((d.stk?'Add how many ':'Counted stock of ')+i.unit+' — '+i.name+'?'));if(isNaN(v)||v<(d.stk?0.0001:0))return;const now=Date.now();i.base=d.stk?stock()[i.id]+v:v;i.bt=now;i.u=now;changed()}
+ else if(d.stk||d.set){const i=S.items.find(x=>x.id===(d.stk||d.set)),v=parseFloat(prompt((d.stk?'Add how many ':'Counted stock of ')+i.unit+' — '+i.name+'?'));if(isNaN(v)||v<(d.stk?0.0001:0))return;const now=Date.now();i.base=d.stk?stock()[i.id]+v:v;i.bt=now;i.u=now;if(d.stk){const p=parseFloat(prompt('How much did you pay for this stock (KES)? Enter 0 if nothing was paid now.'));if(p>0){const cash=confirm('Paid from the cash drawer?\nOK = Cash   Cancel = M-Pesa');S.out.push({id:uid(),t:now,d:today(),k:'stk',what:i.name+' +'+v+' '+i.unit,amt:p,pay:cash?'Cash':'M-Pesa'})}}changed()}
  else if(d.rm){const i=S.items.find(x=>x.id===d.rm);if(confirm('Remove '+i.name+'? Past sales are kept.')){i.x=1;i.u=Date.now();changed()}}
+ else if(d.sub!==undefined){sub=d.sub;render()}
+ else if(d.per){per=d.per;render()}
+ else if(d.ep){expPay=d.ep;render()}
+ else if(d.eadd!==undefined){const w=$('#ew').value.trim(),a=+$('#ea').value;if(!w||!(a>0))return alert('Enter what it was for and the amount.');S.out.push({id:uid(),t:Date.now(),d:today(),k:'exp',what:w,amt:a,pay:expPay});changed()}
+ else if(d.ov){if(confirm('Remove this entry?')){S.out.find(o=>o.id===d.ov).v=1;changed()}}
+ else if(d.cadd!==undefined){const w=$('#cw').value.trim(),a=+$('#cm').value;if(!w||!(a>0))return alert('Enter the customer name and the amount.');S.cr.push({id:uid(),t:Date.now(),d:today(),who:w,kind:'owe',amt:a,note:$('#cnote').value.trim(),pay:''});changed()}
+ else if(d.cpay){const c=credBal().find(x=>x.key===d.cpay),v=parseFloat(prompt('Payment received from '+c.who+' (KES)?\nThey owe '+money(c.bal)));if(!(v>0))return;const cash=confirm('Received in cash?\nOK = Cash   Cancel = M-Pesa');S.cr.push({id:uid(),t:Date.now(),d:today(),who:c.who,kind:'pay',amt:v,note:'',pay:cash?'Cash':'M-Pesa'});changed()}
+ else if(d.chist){openC=openC===d.chist?null:d.chist;render()}
+ else if(d.cv){if(confirm('Remove this credit entry?')){S.cr.find(c=>c.id===d.cv).v=1;changed()}}
+ else if(d.nadd!==undefined){const x=$('#nt').value.trim();if(!x)return;S.notes.push({id:uid(),txt:x,n:1,done:0,u:Date.now()});changed()}
+ else if(d.nplus){const n=S.notes.find(x=>x.id===d.nplus);n.n++;n.u=Date.now();changed()}
+ else if(d.ndone){const n=S.notes.find(x=>x.id===d.ndone);n.done=n.done?0:1;n.u=Date.now();changed()}
+ else if(d.nrm){const n=S.notes.find(x=>x.id===d.nrm);if(confirm('Delete this request?')){n.x=1;n.u=Date.now();changed()}}
  else if(d.k)calc(d.k);
  else if(d.tk!==undefined){S.tok=$('#tk').value.trim();persist();sync()}
- else if(d.ex!==undefined)dl(JSON.stringify({items:S.items,sales:S.sales,floats:S.floats}),'duka-backup-'+today()+'.json','application/json')});
+ else if(d.ex!==undefined)dl(JSON.stringify({items:S.items,sales:S.sales,floats:S.floats,out:S.out,cr:S.cr,notes:S.notes}),'duka-backup-'+today()+'.json','application/json')});
 document.addEventListener('input',e=>{const t=e.target,d=t.dataset;if(d.pr!==undefined){bk[d.pr].price=+t.value;bt()}else if(t.id==='td')bt();
  else if(d.ef)ed[d.ef]=t.value;else if(d.di!==undefined)ed.den[d.di][d.df]=t.type==='number'?t.value:t.value});
 /* SYNC */
 function mergeIn(d){const im=new Map(S.items.map(i=>[i.id,i]));(d.items||[]).forEach(i=>{const o=im.get(i.id);if(!o||(i.u||0)>(o.u||0))im.set(i.id,i)});S.items=[...im.values()];mig();
  const sm=new Map(S.sales.map(s=>[s.id,s]));(d.sales||[]).forEach(s=>{const o=sm.get(s.id);if(!o)sm.set(s.id,s);else if(s.v)o.v=1});S.sales=[...sm.values()];
- Object.entries(d.floats||{}).forEach(([k,f])=>{if(!S.floats[k]||(f.u||0)>(S.floats[k].u||0))S.floats[k]=f})}
-function build(){const o={'core.json':JSON.stringify({items:[...S.items].sort((a,b)=>a.id<b.id?-1:1),floats:S.floats})},m={};
- [...S.sales].sort((a,b)=>a.t-b.t||(a.id<b.id?-1:1)).forEach(s=>(m[s.d.slice(0,7)]=m[s.d.slice(0,7)]||[]).push(s));for(const k in m)o['s-'+k+'.json']=JSON.stringify({sales:m[k]});return o}
+ Object.entries(d.floats||{}).forEach(([k,f])=>{if(!S.floats[k]||(f.u||0)>(S.floats[k].u||0))S.floats[k]=f});un('out',d.out);un('cr',d.cr);const nm=new Map(S.notes.map(x=>[x.id,x]));(d.notes||[]).forEach(x=>{const o=nm.get(x.id);if(!o||(x.u||0)>(o.u||0))nm.set(x.id,x)});S.notes=[...nm.values()]}
+function un(k,r){const m=new Map(S[k].map(x=>[x.id,x]));(r||[]).forEach(x=>{const o=m.get(x.id);if(!o)m.set(x.id,x);else if(x.v)o.v=1});S[k]=[...m.values()]}
+function build(){const o={'core.json':JSON.stringify({items:[...S.items].sort((a,b)=>a.id<b.id?-1:1),floats:S.floats,notes:[...S.notes].sort((a,b)=>a.id<b.id?-1:1)})},m={};
+ const add=(k,a)=>[...a].sort((x,y)=>x.t-y.t||(x.id<y.id?-1:1)).forEach(e=>{const mo=e.d.slice(0,7);(m[mo]=m[mo]||{sales:[],out:[],cr:[]})[k].push(e)});add('sales',S.sales);add('out',S.out);add('cr',S.cr);
+ for(const k in m)o['s-'+k+'.json']=JSON.stringify(m[k]);return o}
 async function gh(p,o={}){const r=await fetch('https://api.github.com'+p,{...o,headers:{Authorization:'Bearer '+S.tok,Accept:'application/vnd.github+json','Content-Type':'application/json'}});if(!r.ok)throw new Error(r.status===401?'bad token':r.status);return r.json()}
 async function sync(){if(busy||!S.tok||!navigator.onLine){stat();return}busy=true;msg='';stat();
  try{if(!S.gid){const l=await gh('/gists?per_page=100');const f=l.find(g=>g.description==='DUKA-LEDGER');if(f)S.gid=f.id}
