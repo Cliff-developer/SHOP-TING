@@ -47,7 +47,7 @@ nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;st
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .den{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}.den button{background:var(--bg);border:0;border-left:5px solid var(--red);border-radius:10px;padding:10px;text-align:left;color:var(--ink);display:flex;flex-direction:column}
 .er{border-top:1px solid var(--ln);padding:10px 0}.er .r{margin-top:6px}.sm{background:none;border:1.5px solid var(--ln);color:var(--ink);border-radius:8px;padding:6px 10px;font-size:13px}.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.tape .l{flex-wrap:wrap;gap:4px 12px}.ok{color:var(--ok)}
+.tape .l{flex-wrap:wrap;gap:4px 12px}.ok{color:var(--ok)}.tb{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.tb th,.tb td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--ln);white-space:nowrap}.tb th:first-child,.tb td:first-child{text-align:left;white-space:normal}.tb th{color:var(--mu);font-weight:600}
 </style></head><body>
 <header><h1>Duka</h1><span id="chip"></span><button class="ib" data-t="set" aria-label="Sync and backup">⚙</button></header>
 <main id="v"></main>
@@ -130,9 +130,9 @@ function calc(k){const n=()=>parseFloat(cd)||0,r=x=>String(Math.round(x*1e8)/1e8
  $('#ce').textContent=ce;$('#cd').textContent=cd}
 /* MORE */
 function credBal(){const m={};S.cr.forEach(c=>{if(c.v)return;const k=c.who.trim().toLowerCase(),r=m[k]=m[k]||{key:k,who:c.who.trim(),bal:0,l:[]};r.bal+=c.kind==='owe'?c.amt:-c.amt;r.l.push(c)});return Object.values(m).sort((a,b)=>b.bal-a.bal)}
-function vMore(){if(sub){({prod:vProd,cred:vCred,exp:vExp,notes:vNotes,set:vSet})[sub]();$('#v').insertAdjacentHTML('afterbegin','<button class="sm" data-sub="" style="margin-bottom:10px">‹ More</button>');return}
+function vMore(){if(sub){({rep:vRep,prod:vProd,cred:vCred,exp:vExp,notes:vNotes,set:vSet})[sub]();$('#v').insertAdjacentHTML('afterbegin','<button class="sm" data-sub="" style="margin-bottom:10px">‹ More</button>');return}
  const owed=credBal().reduce((a,b)=>a+Math.max(b.bal,0),0);
- $('#v').innerHTML=`<div class="card">${[['prod','Products & profit','Which items earn, which to replace'],['cred','Credit (deni)',owed>0?money(owed)+' owed to you':'Who owes you'],['exp','Expenses','Lunch, transport, other costs'],['notes','Customer requests','Things clients ask for'],['set','Sync, exports & backup','GitHub Gist, CSV, backup']].map(r=>`<button class="ghost" style="text-align:left;margin-bottom:8px" data-sub="${r[0]}"><b>${r[1]}</b><div class="mu">${r[2]}</div></button>`).join('')}</div>`}
+ $('#v').innerHTML=`<div class="card">${[['rep','Sales report','Any period: totals, items and days'],['prod','Products & profit','Which items earn, which to replace'],['cred','Credit (deni)',owed>0?money(owed)+' owed to you':'Who owes you'],['exp','Expenses','Lunch, transport, other costs'],['notes','Customer requests','Things clients ask for'],['set','Sync, exports & backup','GitHub Gist, CSV, backup']].map(r=>`<button class="ghost" style="text-align:left;margin-bottom:8px" data-sub="${r[0]}"><b>${r[1]}</b><div class="mu">${r[2]}</div></button>`).join('')}</div>`}
 function vProd(){const from=per==='7'?Date.now()-7*864e5:per==='30'?Date.now()-30*864e5:0,m={};
  S.sales.forEach(s=>{if(s.v||s.t<from)return;const r=m[s.item]=m[s.item]||{name:s.name,rev:0,cs:0,pr:0,n:0};r.name=s.name;const v=s.qty*s.price;r.rev+=v;r.n++;if(s.cost!=null){r.cs+=v;r.pr+=v-s.qty*s.cost}});
  const l=Object.values(m),TR=l.reduce((a,r)=>a+r.rev,0),TP=l.reduce((a,r)=>a+r.pr,0),TC=l.reduce((a,r)=>a+r.cs,0),avg=TC?TP/TC:0,ex=S.out.filter(o=>o.k==='exp'&&!o.v&&o.t>=from).reduce((a,o)=>a+o.amt,0);
@@ -151,6 +151,26 @@ function vExp(){const l=S.out.filter(o=>o.k==='exp'&&!o.v).sort((a,b)=>b.t-a.t),
 function vNotes(){const l=S.notes.filter(n=>!n.x).sort((a,b)=>(+!!a.done-+!!b.done)||(b.n-a.n));
  $('#v').innerHTML=`<div class="card"><b>Customer requests</b><p class="mu">Write down what clients ask for that you don't sell yet. Tap “+1 asked” each time someone asks, so the most wanted items rise to the top.</p><div class="r"><input id="nt" placeholder="e.g. Brown sugar 1 kg"><button class="sm" style="flex:0" data-nadd>Add</button></div></div>
 <div class="card">${l.map(n=>`<div class="row"><div><b style="${n.done?'text-decoration:line-through;opacity:.6':''}">${esc(n.txt)}</b><div class="mu">Asked ${n.n} time${n.n>1?'s':''}</div></div><div class="acts" style="margin:0"><button class="sm" data-nplus="${n.id}">+1 asked</button><button class="sm" data-ndone="${n.id}">${n.done?'Undo':'Stocked ✓'}</button><button class="sm" data-nrm="${n.id}">✕</button></div></div>`).join('')||'<p class="mu">No requests yet.</p>'}</div>`}
+let rpf,rpt,rpp='month';
+function rpSet(p){const t=new Date(),y=t.getFullYear(),m=t.getMonth();rpp=p;
+ if(p==='today')rpf=rpt=today();else if(p==='week'){const d=new Date(t);d.setDate(t.getDate()-((t.getDay()+6)%7));rpf=ymd(d);rpt=today()}
+ else if(p==='month'){rpf=ymd(new Date(y,m,1));rpt=today()}else if(p==='last'){rpf=ymd(new Date(y,m-1,1));rpt=ymd(new Date(y,m,0))}}
+rpSet('month');
+function repData(){const inr=d=>d>=rpf&&d<=rpt,mk=()=>({n:0,t:0,p:0,cs:0,c:0,m:0,k:0}),T=mk(),I={},D={};
+ S.sales.forEach(s=>{if(s.v||!inr(s.d))return;const v=s.qty*s.price,pr=s.cost==null?0:v-s.qty*s.cost,cv=s.cost==null?0:v;
+  [T,I[s.item]=I[s.item]||{...mk(),name:s.name},D[s.d]=D[s.d]||mk()].forEach(o=>{o.n++;o.t+=v;o.p+=pr;o.cs+=cv;s.pay==='M-Pesa'?o.m+=v:s.pay==='Credit'?o.k+=v:o.c+=v})});
+ const ex=S.out.filter(o=>o.k==='exp'&&!o.v&&inr(o.d)).reduce((a,o)=>a+o.amt,0);
+ return{T,ex,I:Object.values(I).sort((a,b)=>b.p-a.p),D:Object.keys(D).sort().map(k=>({d:k,...D[k]}))}}
+function vRep(){const{T,ex,I,D}=repData(),nf=n=>(Math.round(n*100)/100).toLocaleString('en-KE');
+ $('#v').innerHTML=`<div class="seg">${[['today','Today'],['week','This week'],['month','This month'],['last','Last month']].map(p=>`<button data-rp="${p[0]}" class="${rpp===p[0]?'on':''}">${p[1]}</button>`).join('')}</div>
+<div class="r" style="margin-bottom:12px"><label>From<input type="date" id="rpf" value="${rpf}"></label><label>To<input type="date" id="rpt" value="${rpt}"></label></div>
+<div class="tape"><div class="mu">${rpf} to ${rpt}</div><div class="t">${money(T.t)}</div><div class="l"><span>Cash ${money(T.c)}</span><span>M-Pesa ${money(T.m)}</span><span>Credit ${money(T.k)}</span><span>${T.n} sales</span></div></div>
+<div class="card"><div class="row"><span>Profit on sales</span><b>${money(T.p)}</b></div><div class="row"><span>Expenses</span><b>${money(ex)}</b></div><div class="row"><span><b>Net profit</b></span><b>${money(T.p-ex)}</b></div><p class="mu" style="margin:6px 0 0">Custom-amount sales have no buying price, so they are not in the profit figures.</p></div>
+<div class="card"><b>By item</b>${I.length?`<div style="overflow-x:auto"><table class="tb"><tr><th>Item</th><th>Sales</th><th>Total</th><th>Profit</th><th>Margin</th></tr>${I.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.n}</td><td>${nf(r.t)}</td><td>${nf(r.p)}</td><td>${r.cs?Math.round(r.p/r.cs*100)+'%':'–'}</td></tr>`).join('')}</table></div>`:'<p class="mu">No sales in this period.</p>'}</div>
+<div class="card"><b>By day</b>${D.length?`<div style="overflow-x:auto"><table class="tb"><tr><th>Date</th><th>Sales</th><th>Cash</th><th>M-Pesa</th><th>Credit</th><th>Profit</th></tr>${D.map(r=>`<tr><td>${r.d}</td><td>${r.n}</td><td>${nf(r.c)}</td><td>${nf(r.m)}</td><td>${nf(r.k)}</td><td>${nf(r.p)}</td></tr>`).join('')}</table></div>`:'<p class="mu">No sales in this period.</p>'}</div>
+<button class="ghost" data-rcsv>Export this report (CSV)</button>`;
+ const ch=()=>{let a=$('#rpf').value||rpf,b=$('#rpt').value||rpt;if(a>b)[a,b]=[b,a];rpf=a;rpt=b;rpp='';render()};$('#rpf').onchange=ch;$('#rpt').onchange=ch}
+function expRep(){const{T,ex,I,D}=repData();dl(['Sales report,'+rpf+' to '+rpt,'Total sales,'+T.t,'Cash,'+T.c,'M-Pesa,'+T.m,'Credit,'+T.k,'Number of sales,'+T.n,'Profit on sales,'+T.p,'Expenses,'+ex,'Net profit,'+(T.p-ex),'','By item','Item,Sales,Total,Profit,Margin %',...I.map(r=>[cq(r.name),r.n,r.t,r.p,r.cs?Math.round(r.p/r.cs*100):''].join(',')),'','By day','Date,Sales,Total,Cash,M-Pesa,Credit,Profit',...D.map(r=>[r.d,r.n,r.t,r.c,r.m,r.k,r.p].join(','))].join('\n'),'report-'+rpf+'-to-'+rpt+'.csv','text/csv')}
 /* SETTINGS */
 function vSet(){$('#v').innerHTML=`<div class="card"><b>Sync across devices (GitHub Gist)</b><p class="mu">Your sales and stock are saved in a private Gist on your own GitHub account. Create a token at github.com/settings/tokens (classic, tick only “gist”), paste it here, and use the same token on any other device. The token stays on this device.</p>
 <label>GitHub token<input id="tk" type="password" value="${esc(S.tok)}" placeholder="ghp_…" autocomplete="off"></label><button class="pri" style="background:var(--ac);color:var(--pp)" data-tk>Save and sync now</button><p class="mu">${msg||(S.gid?'Linked to your Gist.':'Not linked yet.')}</p></div>
@@ -197,6 +217,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('button,label');i
   if(ed.id){const i=S.items.find(x=>x.id===ed.id);Object.assign(i,{name:n,unit:ed.unit.trim(),den,u:now})}else S.items.push({id:uid(),name:n,unit:ed.unit.trim(),base:+ed.start||0,bt:now,u:now,den});ed=null;changed()}
  else if(d.stk||d.set){const i=S.items.find(x=>x.id===(d.stk||d.set)),v=parseFloat(prompt((d.stk?'Add how many ':'Counted stock of ')+i.unit+' — '+i.name+'?'));if(isNaN(v)||v<(d.stk?0.0001:0))return;const now=Date.now();i.base=d.stk?stock()[i.id]+v:v;i.bt=now;i.u=now;if(d.stk){const p=parseFloat(prompt('How much did you pay for this stock (KES)? Enter 0 if nothing was paid now.'));if(p>0){const cash=confirm('Paid from the cash drawer?\nOK = Cash   Cancel = M-Pesa');S.out.push({id:uid(),t:now,d:today(),k:'stk',what:i.name+' +'+v+' '+i.unit,amt:p,pay:cash?'Cash':'M-Pesa'})}}changed()}
  else if(d.rm){const i=S.items.find(x=>x.id===d.rm);if(confirm('Remove '+i.name+'? Past sales are kept.')){i.x=1;i.u=Date.now();changed()}}
+ else if(d.rp){rpSet(d.rp);render()}
+ else if(d.rcsv!==undefined)expRep();
  else if(d.sub!==undefined){sub=d.sub;render()}
  else if(d.per){per=d.per;render()}
  else if(d.ep){expPay=d.ep;render()}
