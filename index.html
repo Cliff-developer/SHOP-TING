@@ -132,7 +132,7 @@ function calc(k){const n=()=>parseFloat(cd)||0,r=x=>String(Math.round(x*1e8)/1e8
 function credBal(){const m={};S.cr.forEach(c=>{if(c.v)return;const k=c.who.trim().toLowerCase(),r=m[k]=m[k]||{key:k,who:c.who.trim(),bal:0,l:[]};r.bal+=c.kind==='owe'?c.amt:-c.amt;r.l.push(c)});return Object.values(m).sort((a,b)=>b.bal-a.bal)}
 function vMore(){if(sub){({rep:vRep,prod:vProd,cred:vCred,exp:vExp,notes:vNotes,set:vSet})[sub]();$('#v').insertAdjacentHTML('afterbegin','<button class="sm" data-sub="" style="margin-bottom:10px">‹ More</button>');return}
  const owed=credBal().reduce((a,b)=>a+Math.max(b.bal,0),0);
- $('#v').innerHTML=`<div class="card">${[['rep','Sales report','Any period: totals, items and days'],['prod','Products & profit','Which items earn, which to replace'],['cred','Credit (deni)',owed>0?money(owed)+' owed to you':'Who owes you'],['exp','Expenses','Lunch, transport, other costs'],['notes','Customer requests','Things clients ask for'],['set','Sync, exports & backup','GitHub Gist, CSV, backup']].map(r=>`<button class="ghost" style="text-align:left;margin-bottom:8px" data-sub="${r[0]}"><b>${r[1]}</b><div class="mu">${r[2]}</div></button>`).join('')}</div>`}
+ $('#v').innerHTML=`<div class="card">${[['rep','Sales report','Any period: totals, items and days'],['prod','Products & profit','Which items earn, which to replace'],['cred','Credit (deni)',owed>0?money(owed)+' owed to you':'Who owes you'],['exp','Expenses','Lunch, transport, other costs'],['notes','Customer requests','Things clients ask for'],['set','Sync, exports & backup','GitHub Gist, CSV, backup']].map(r=>`<button class="ghost" style="text-align:left;margin-bottom:8px" data-sub="${r[0]}"><b>${r[1]}</b><div class="mu">${r[2]}</div></button>`).join('')}<p class="mu" style="margin:0;text-align:center">Duka · version 5</p></div>`}
 function vProd(){const from=per==='7'?Date.now()-7*864e5:per==='30'?Date.now()-30*864e5:0,m={};
  S.sales.forEach(s=>{if(s.v||s.t<from)return;const r=m[s.item]=m[s.item]||{name:s.name,rev:0,cs:0,pr:0,n:0};r.name=s.name;const v=s.qty*s.price;r.rev+=v;r.n++;if(s.cost!=null){r.cs+=v;r.pr+=v-s.qty*s.cost}});
  const l=Object.values(m),TR=l.reduce((a,r)=>a+r.rev,0),TP=l.reduce((a,r)=>a+r.pr,0),TC=l.reduce((a,r)=>a+r.cs,0),avg=TC?TP/TC:0,ex=S.out.filter(o=>o.k==='exp'&&!o.v&&o.t>=from).reduce((a,o)=>a+o.amt,0);
@@ -255,6 +255,6 @@ async function sync(){if(busy||!S.tok||!navigator.onLine){stat();return}busy=tru
   S.at=Date.now();persist()}catch(e){msg='Sync failed: '+e.message}
  busy=false;const a=document.activeElement;if(!a||a.tagName!=='INPUT')render();else stat()}
 addEventListener('online',sync);addEventListener('offline',stat);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 render();sync();
 </script></body></html>
