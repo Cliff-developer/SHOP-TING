@@ -47,10 +47,10 @@ nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;st
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .den{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}.den button{background:var(--bg);border:0;border-left:5px solid var(--red);border-radius:10px;padding:10px;text-align:left;color:var(--ink);display:flex;flex-direction:column}
 .er{border-top:1px solid var(--ln);padding:10px 0}.er .r{margin-top:6px}.sm{background:none;border:1.5px solid var(--ln);color:var(--ink);border-radius:8px;padding:6px 10px;font-size:13px}.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.tape .l{flex-wrap:wrap;gap:4px 12px}.ok{color:var(--ok)}select{font:inherit;color:var(--ink);background:var(--pp);border:1.5px solid var(--ln);border-radius:10px;padding:11px 12px;width:100%}.tb{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.tb th,.tb td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--ln);white-space:nowrap}.tb th:first-child,.tb td:first-child{text-align:left;white-space:normal}.tb th{color:var(--mu);font-weight:600}
-</style></head><body>
+.tape .l{flex-wrap:wrap;gap:4px 12px}.ok{color:var(--ok)}.mdl{position:fixed;inset:0;background:#0009;display:flex;align-items:flex-end;justify-content:center;padding:16px;z-index:9}.mdl .card{width:100%;max-width:560px;margin:0}select{font:inherit;color:var(--ink);background:var(--pp);border:1.5px solid var(--ln);border-radius:10px;padding:11px 12px;width:100%}.tb{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.tb th,.tb td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--ln);white-space:nowrap}.tb th:first-child,.tb td:first-child{text-align:left;white-space:normal}.tb th{color:var(--mu);font-weight:600}
+#ce{min-height:3.6em;max-height:6.5em;overflow:auto;font-size:20px;line-height:1.35;overflow-wrap:anywhere}#cd{border-top:1px solid var(--ln);margin:6px 0 10px;padding-top:4px;overflow-wrap:anywhere}</style></head><body>
 <header><h1>Duka</h1><span id="chip"></span><button class="ib" data-t="set" aria-label="Sync and backup">⚙</button></header>
-<main id="v"></main>
+<main id="v"></main><div id="md"></div>
 <nav id="nv">
 <button data-t="sell"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h10l2-8H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="16" cy="19" r="1.5"/></svg>Sell</button>
 <button data-t="day"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Ledger</button>
@@ -74,7 +74,7 @@ const amtOf=s=>s.amt!=null?s.amt:s.qty;
 function stock(){const m={},im={};S.items.forEach(i=>{m[i.id]=i.base;im[i.id]=i});S.sales.forEach(s=>{const i=im[s.item];if(!s.v&&i&&s.t>i.bt)m[i.id]-=amtOf(s)});S.out.forEach(o=>{if(o.k==='int'&&!o.v){const i=im[o.item];if(i&&o.t>i.bt)m[i.id]-=o.use}});for(const k in m)m[k]=rd3(m[k]);return m}
 function sums(d){let c=0,m=0,k=0,n=0,p=0;S.sales.forEach(s=>{if(s.d===d&&!s.v){const v=s.qty*s.price;n++;s.pay==='M-Pesa'?m+=v:s.pay==='Credit'?k+=v:c+=v;if(s.cost!=null)p+=v-s.qty*s.cost}});return{c,m,k,n,p,t:c+m+k}}
 function tape(d,title){const t=sums(d);return`<div class="tape"><div class="mu">${title}</div><div class="t">${money(t.t)}</div><div class="l"><span>Cash ${money(t.c)}</span><span>M-Pesa ${money(t.m)}</span>${t.k?`<span>Credit ${money(t.k)}</span>`:''}<span>${t.n} sales</span><span><b>Profit ${money(t.p)}</b></span></div></div>`}
-function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));({sell:vSell,day:vDay,stock:vStock,calc:vCalc,more:vMore})[tab]();stat()}
+function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));({sell:vSell,day:vDay,stock:vStock,calc:vCalc,more:vMore})[tab]();stat();showPm()}
 function stat(){$('#chip').textContent=busy?'Syncing…':msg||(!S.tok?'Saved on phone':!navigator.onLine?'Offline · saved':S.at?'Synced '+hm(S.at):'Not synced yet')}
 /* SELL */
 function vSell(){$('#v').innerHTML=tape(today(),'Today')+'<div id="bk"></div><div id="pk"></div><input id="q" placeholder="Search items" value="'+esc(q)+'"><div id="gr" class="grid"></div>';
@@ -120,23 +120,41 @@ function vEdit(){$('#v').innerHTML=`<div class="card"><b>${ed.id?'Edit item':'Ne
 ${ed.den.map((d,i)=>`<div class="er"><input data-di="${i}" data-df="label" value="${esc(d.label)}" placeholder="Size name e.g. 250 ml"><div class="r"><label>Uses (${esc(ed.unit||'unit')})<input data-di="${i}" data-df="amt" type="number" inputmode="decimal" value="${d.amt}"></label><label>Sell KES<input data-di="${i}" data-df="price" type="number" inputmode="decimal" value="${d.price}"></label><label>Buy KES<input data-di="${i}" data-df="cost" type="number" inputmode="decimal" value="${d.cost}"></label></div><div class="acts"><button class="sm" data-dup="${i}">Duplicate</button>${ed.den.length>1?`<button class="sm" data-dx="${i}">Remove size</button>`:''}</div></div>`).join('')}
 <button class="ghost" style="margin-top:8px" data-ad>+ Add another size</button><button class="pri" data-isave>Save item</button><button class="ghost" style="margin-top:8px" data-icancel>Cancel</button></div>`}
 /* CALC */
-let acc=null,op=null,typed=false,cd='0',ce='';
+let cx=[],cc='',cdn=false;const COPS='÷×−+';
 function vCalc(){const k=['C','⌫','%','÷','7','8','9','×','4','5','6','−','1','2','3','+','0','.','00','='];
- $('#v').innerHTML=`<div class="card"><div id="ce">${ce}</div><div id="cd">${cd}</div><div class="pad" style="margin-top:10px">${k.map(x=>`<button class="${'÷×−+='.includes(x)?'op':''}" data-k="${x}">${x}</button>`).join('')}</div></div>`}
-function calc(k){const n=()=>parseFloat(cd)||0,r=x=>String(Math.round(x*1e8)/1e8),ap=(a,o,b)=>o==='+'?a+b:o==='−'?a-b:o==='×'?a*b:(b===0?0:a/b);
- if(k==='C'){acc=null;op=null;typed=false;cd='0';ce=''}
- else if(k==='⌫'){if(typed)cd=cd.length>1?cd.slice(0,-1):'0'}
- else if(k==='='){if(op&&acc!==null){cd=r(ap(acc,op,n()));acc=null;op=null;ce='';typed=false}}
- else if('÷×−+'.includes(k)){if(acc===null)acc=n();else if(typed)acc=ap(acc,op,n());op=k;typed=false;cd=r(acc);ce=cd+' '+k}
- else if(k==='%'){cd=r(acc!==null&&(op==='+'||op==='−')?acc*n()/100:n()/100);typed=true}
- else if(k==='.'){if(!typed){cd='0.';typed=true}else if(!cd.includes('.'))cd+='.'}
- else{if(!typed){cd=k==='00'?'0':k;typed=true}else cd=cd==='0'?(k==='00'?'0':k):cd+k}
- $('#ce').textContent=ce;$('#cd').textContent=cd}
+ $('#v').innerHTML=`<div class="card"><div id="ce"></div><div id="cd"></div><div class="pad">${k.map(x=>`<button class="${'÷×−+='.includes(x)?'op':''}" data-k="${x}">${x}</button>`).join('')}</div></div>`;calcShow()}
+function calcShow(){const v=cView(),t=$('#ce');t.textContent=v.top;t.scrollTop=t.scrollHeight;$('#cd').textContent=v.bot}
+const cNum=s=>({k:'n',s:s.endsWith('.')?s.slice(0,-1):s,v:parseFloat(s)||0});
+function cEv(t){if(!t.length)return null;const vals=[t[0].v],ops=[];
+ for(let i=1;i<t.length;i+=2){const op=t[i].s,v=t[i+1].v;
+  if(op==='×'||op==='÷'){const l=vals.pop();if(op==='÷'&&v===0)return NaN;vals.push(op==='×'?l*v:l/v)}else{ops.push(op);vals.push(v)}}
+ let r=vals[0];ops.forEach((o,i)=>{r=o==='+'?r+vals[i+1]:r-vals[i+1]});return Math.round(r*1e8)/1e8}
+function cLive(){const t=cx.slice();if(cc!=='')t.push(cNum(cc));if(t.length&&t[t.length-1].k==='o')t.pop();return cEv(t)}
+function cPress(k){
+ if(k==='C'){cx=[];cc='';cdn=false;return}
+ if(k==='⌫'){if(cdn)return;if(cc!=='')cc=cc.slice(0,-1);else if(cx.length){const l=cx.pop();if(l.k==='n')cc=l.s.endsWith('%')?String(l.v):l.s.slice(0,-1)}return}
+ if(k==='='){if(cdn)return;if(cc!==''){cx.push(cNum(cc));cc=''}if(cx.length&&cx[cx.length-1].k==='o')cx.pop();if(cx.length)cdn=true;return}
+ if(COPS.includes(k)){
+  if(cdn){const r=cLive();if(typeof r!=='number'||isNaN(r)){cx=[];cdn=false;return}cx=[{k:'n',s:String(r),v:r}];cdn=false}
+  if(cc!==''){cx.push(cNum(cc));cc=''}
+  if(!cx.length)cx.push({k:'n',s:'0',v:0});
+  if(cx[cx.length-1].k==='o')cx[cx.length-1]={k:'o',s:k};else cx.push({k:'o',s:k});return}
+ if(k==='%'){if(cdn||cc==='')return;const n=parseFloat(cc),lo=cx.length&&cx[cx.length-1];let v=n/100;
+  if(lo&&lo.k==='o'&&(lo.s==='+'||lo.s==='−')){const L=cEv(cx.slice(0,-1));if(typeof L==='number'&&!isNaN(L))v=L*n/100}
+  cx.push({k:'n',s:cc+'%',v:Math.round(v*1e8)/1e8});cc='';return}
+ if(cdn){cx=[];cc='';cdn=false}
+ if(cx.length&&cx[cx.length-1].k==='n')return;
+ if(k==='.'){if(cc==='')cc='0.';else if(!cc.includes('.'))cc+='.';return}
+ if(k==='00'){cc=(cc===''||cc==='0')?'0':cc+'00';return}
+ cc=cc==='0'?k:cc+k}
+function cView(){const top=cx.map(x=>x.s).join(' ')+(cc!==''?(cx.length?' ':'')+cc:'')+(cdn?' =':'');
+ const r=cLive();let bot;if(r===null)bot=cc||'0';else if(isNaN(r))bot='Error';else bot=r.toLocaleString('en-US',{maximumFractionDigits:8});return{top,bot}}
+function calc(k){cPress(k);calcShow()}
 /* MORE */
 function credBal(){const m={};S.cr.forEach(c=>{if(c.v)return;const k=c.who.trim().toLowerCase(),r=m[k]=m[k]||{key:k,who:c.who.trim(),bal:0,l:[]};r.bal+=c.kind==='owe'?c.amt:-c.amt;r.l.push(c)});return Object.values(m).sort((a,b)=>b.bal-a.bal)}
 function vMore(){if(sub){({rep:vRep,prod:vProd,cred:vCred,exp:vExp,notes:vNotes,set:vSet})[sub]();$('#v').insertAdjacentHTML('afterbegin','<button class="sm" data-sub="" style="margin-bottom:10px">‹ More</button>');return}
  const owed=credBal().reduce((a,b)=>a+Math.max(b.bal,0),0);
- $('#v').innerHTML=`<div class="card">${[['rep','Sales report','Any period: totals, items and days'],['prod','Products & profit','Which items earn, which to replace'],['cred','Credit (deni)',owed>0?money(owed)+' owed to you':'Who owes you'],['exp','Expenses','Daily totals, stock reinvested, internal use'],['notes','Customer requests','Things clients ask for'],['set','Sync, exports & backup','GitHub Gist, CSV, backup']].map(r=>`<button class="ghost" style="text-align:left;margin-bottom:8px" data-sub="${r[0]}"><b>${r[1]}</b><div class="mu">${r[2]}</div></button>`).join('')}<p class="mu" style="margin:0;text-align:center">Duka · version 6</p></div>`}
+ $('#v').innerHTML=`<div class="card">${[['rep','Sales report','Any period: totals, items and days'],['prod','Products & profit','Which items earn, which to replace'],['cred','Credit (deni)',owed>0?money(owed)+' owed to you':'Who owes you'],['exp','Expenses','Daily totals, stock reinvested, internal use'],['notes','Customer requests','Things clients ask for'],['set','Sync, exports & backup','GitHub Gist, CSV, backup']].map(r=>`<button class="ghost" style="text-align:left;margin-bottom:8px" data-sub="${r[0]}"><b>${r[1]}</b><div class="mu">${r[2]}</div></button>`).join('')}<p class="mu" style="margin:0;text-align:center">Duka · version 8</p></div>`}
 function vProd(){const from=per==='7'?Date.now()-7*864e5:per==='30'?Date.now()-30*864e5:0,m={};
  S.sales.forEach(s=>{if(s.v||s.t<from)return;const r=m[s.item]=m[s.item]||{name:s.name,rev:0,cs:0,pr:0,n:0};r.name=s.name;const v=s.qty*s.price;r.rev+=v;r.n++;if(s.cost!=null){r.cs+=v;r.pr+=v-s.qty*s.cost}});
  const l=Object.values(m),TR=l.reduce((a,r)=>a+r.rev,0),TP=l.reduce((a,r)=>a+r.pr,0),TC=l.reduce((a,r)=>a+r.cs,0),avg=TC?TP/TC:0,ex=exTot(o=>o.t>=from).net;
@@ -146,9 +164,13 @@ function vProd(){const from=per==='7'?Date.now()-7*864e5:per==='30'?Date.now()-3
  $('#v').innerHTML=`<div class="seg">${[['7','7 days'],['30','30 days'],['all','All time']].map(p=>`<button data-per="${p[0]}" class="${per===p[0]?'on':''}">${p[1]}</button>`).join('')}</div>
 <div class="tape"><div class="mu">Profit on sales</div><div class="t">${money(TP)}</div><div class="l"><span>Sales ${money(TR)}</span><span>Expenses ${money(ex)}</span><span><b>Net ${money(TP-ex)}</b></span></div></div>
 ${l.map(r=>`<div class="card"><div class="r" style="align-items:center"><b>${esc(r.name)}</b><b style="text-align:right">${money(r.pr)}</b></div><div class="mu">${r.mg==null?'No buying price set':Math.round(r.mg*100)+'% margin'} · sales ${money(r.rev)} · ${r.n} sale${r.n>1?'s':''}${TP>0&&r.pr>0?' · '+Math.round(r.pr/TP*100)+'% of profit':''}</div><div class="${r.a[1]}" style="margin-top:4px;font-size:14px">${r.a[0]}</div></div>`).join('')||'<p class="mu">No sales in this period yet.</p>'}`}
+let pm=null,pmPay='Cash';
+function showPm(){const el=$('#md');if(!el)return;const c=pm&&credBal().find(x=>x.key===pm);if(!c){pm=null;el.innerHTML='';return}
+ const keep=$('#pma')?$('#pma').value:null;
+ el.innerHTML=`<div class="mdl"><div class="card"><b>Payment from ${esc(c.who)}</b><p class="mu">${c.bal>0?'Owes '+money(c.bal):'Nothing owed right now'}</p><input id="pma" type="number" inputmode="decimal" placeholder="Amount received" value="${keep!==null?keep:(c.bal>0?c.bal:'')}"><div class="seg"><button data-pmp="Cash" class="${pmPay==='Cash'?'on':''}">Cash</button><button data-pmp="M-Pesa" class="${pmPay==='M-Pesa'?'on':''}">M-Pesa</button></div><button class="pri" data-pmok>Save payment</button><button class="ghost" style="margin-top:8px" data-pmx>Cancel</button></div></div>`}
 function vCred(){const l=credBal();
  $('#v').innerHTML=`<div class="card"><b>Add credit given</b><div class="r" style="margin-top:8px"><input id="cw" list="cl2" placeholder="Customer name" autocomplete="off"><datalist id="cl2">${l.map(c=>`<option value="${esc(c.who)}">`).join('')}</datalist><input id="cm" type="number" inputmode="decimal" placeholder="Amount"></div><div class="r" style="margin-top:8px"><input id="cnote" placeholder="What for (optional)"><button class="sm" style="flex:0" data-cadd>Add</button></div><p class="mu">Credit sales made on the Sell tab appear here automatically.</p></div>
-${l.map(c=>`<div class="card"><div class="r" style="align-items:center"><b>${esc(c.who)}</b><b style="text-align:right" class="${c.bal>0?'low':''}">${money(c.bal)}</b></div><div class="acts"><button class="sm" data-cpay="${esc(c.key)}">Payment received</button><button class="sm" data-chist="${esc(c.key)}">${openC===c.key?'Hide history':'History'}</button></div>${openC===c.key?c.l.slice().sort((a,b)=>b.t-a.t).map(e=>`<div class="row"><div>${e.kind==='owe'?'Took':'Paid'}${e.note?' · '+esc(e.note):''}<div class="mu">${e.d}${e.pay?' · '+e.pay:''}</div></div><div class="rt">${e.kind==='owe'?'+':'−'}${money(e.amt)} <button class="x" data-cv="${e.id}">✕</button></div></div>`).join(''):''}</div>`).join('')||'<p class="mu">No credit records yet.</p>'}`}
+${l.map(c=>`<div class="card"><div class="r" style="align-items:center"><b>${esc(c.who)}</b><b style="text-align:right" class="${c.bal>0?'low':''}">${money(c.bal)}</b></div><div class="acts">${Math.round(c.bal*100)>0?`<button class="sm" data-cpay="${esc(c.key)}">Payment received</button>`:'<span class="ok" style="font-weight:600;align-self:center">Settled ✓</span>'}<button class="sm" data-chist="${esc(c.key)}">${openC===c.key?'Hide history':'History'}</button></div>${openC===c.key?c.l.slice().sort((a,b)=>b.t-a.t).map(e=>`<div class="row"><div>${e.kind==='owe'?'Took':'Paid'}${e.note?' · '+esc(e.note):''}<div class="mu">${e.d}${e.pay?' · '+e.pay:''}</div></div><div class="rt">${e.kind==='owe'?'+':'−'}${money(e.amt)} <button class="x" data-cv="${e.id}">✕</button></div></div>`).join(''):''}</div>`).join('')||'<p class="mu">No credit records yet.</p>'}`}
 let exd=today(),expCat='other',iu={item:'',den:''};
 function vExp(){const tg=today(),L=S.out.filter(o=>o.d===exd&&!o.v&&(o.k==='exp'||o.k==='stk'||o.k==='int')).sort((a,b)=>b.t-a.t),D=exTot(o=>o.d===exd),M=exTot(o=>o.d.slice(0,7)===exd.slice(0,7)),recs={};
  S.out.forEach(o=>{if(!o.v&&o.k==='rec')recs[o.ref]=(recs[o.ref]||0)+o.amt});
@@ -245,7 +267,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('button,label');i
  else if(d.eadd!==undefined){const w=$('#ew').value.trim(),a=+$('#ea').value;if(!w||!(a>0))return alert('Enter what it was for and the amount.');S.out.push({id:uid(),t:tfor(exd),d:exd,k:'exp',cat:expCat,what:w,amt:a,pay:expPay});changed()}
  else if(d.ov){if(confirm('Remove this entry?')){const o=S.out.find(x=>x.id===d.ov);o.v=1;o.u=Date.now();S.out.forEach(r=>{if(r.k==='rec'&&r.ref===o.id)r.v=1});changed()}}
  else if(d.cadd!==undefined){const w=$('#cw').value.trim(),a=+$('#cm').value;if(!w||!(a>0))return alert('Enter the customer name and the amount.');S.cr.push({id:uid(),t:Date.now(),d:today(),who:w,kind:'owe',amt:a,note:$('#cnote').value.trim(),pay:''});changed()}
- else if(d.cpay){const c=credBal().find(x=>x.key===d.cpay),v=parseFloat(prompt('Payment received from '+c.who+' (KES)?\nThey owe '+money(c.bal)));if(!(v>0))return;const cash=confirm('Received in cash?\nOK = Cash   Cancel = M-Pesa');S.cr.push({id:uid(),t:Date.now(),d:today(),who:c.who,kind:'pay',amt:v,note:'',pay:cash?'Cash':'M-Pesa'});changed()}
+ else if(d.cpay){pm=d.cpay;pmPay='Cash';showPm()}
+ else if(d.pmp){pmPay=d.pmp;showPm()}
+ else if(d.pmx!==undefined){pm=null;showPm()}
+ else if(d.pmok!==undefined){const c=credBal().find(x=>x.key===pm),v=+$('#pma').value;if(!c)return;if(!(v>0))return alert('Enter the amount received.');S.cr.push({id:uid(),t:Date.now(),d:today(),who:c.who,kind:'pay',amt:v,note:'',pay:pmPay});pm=null;showPm();changed()}
  else if(d.chist){openC=openC===d.chist?null:d.chist;render()}
  else if(d.cv){if(confirm('Remove this credit entry?')){S.cr.find(c=>c.id===d.cv).v=1;changed()}}
  else if(d.nadd!==undefined){const x=$('#nt').value.trim();if(!x)return;S.notes.push({id:uid(),txt:x,n:1,done:0,u:Date.now()});changed()}
